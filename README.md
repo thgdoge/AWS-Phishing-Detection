@@ -1,4 +1,4 @@
-# AWS Serverless Phishing Detection Engine
+# AWS Phishing Detection Engine
 
 Hệ thống phát hiện và cảnh báo tấn công giả mạo (Phishing Detection) đa kênh dành cho **Đường link (URL)**, **Nội dung Email** và **Tệp đính kèm (File)**, xây dựng hoàn toàn trên kiến trúc **100% Serverless** hướng sự kiện (Event-driven) trên nền tảng điện toán đám mây Amazon Web Services (AWS) với chi phí vận hành xấp xỉ **$0** (nằm trọn trong gói AWS Free Tier).
 
