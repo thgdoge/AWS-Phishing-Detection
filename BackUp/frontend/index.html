@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hệ Thống Quét & Phát Hiện Phishing</title>
+  <style>
+    :root { --primary: #2563eb; --danger: #dc2626; --warning: #d97706; --success: #16a34a; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 40px 20px; display: flex; justify-content: center; }
+    .container { width: 100%; max-width: 720px; }
+    .header { text-align: center; margin-bottom: 30px; }
+    .header h1 { font-size: 28px; margin-bottom: 8px; color: #60a5fa; }
+    .card { background: var(--card); border-radius: 12px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid #334155; }
+    .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #334155; padding-bottom: 12px; }
+    .tab-btn { background: transparent; border: none; color: #94a3b8; padding: 8px 16px; font-weight: 600; cursor: pointer; border-radius: 6px; }
+    .tab-btn.active { background: #334155; color: #fff; }
+    .input-group { margin-bottom: 16px; display: none; }
+    .input-group.active { display: block; }
+    input[type="text"], textarea { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #fff; font-size: 15px; }
+    input[type="file"] { width: 100%; padding: 10px; background: #0f172a; border-radius: 8px; border: 1px dashed #475569; color: #94a3b8; }
+    .btn-submit { width: 100%; padding: 12px; background: var(--primary); border: none; border-radius: 8px; color: white; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s; }
+    .btn-submit:hover { opacity: 0.9; }
+    .btn-submit:disabled { background: #64748b; cursor: not-allowed; }
+    .result-box { margin-top: 24px; padding: 20px; border-radius: 8px; background: #0f172a; border: 1px solid #334155; display: none; }
+    .score-badge { font-size: 36px; font-weight: 800; text-align: center; margin: 15px 0; }
+    .badge-safe { color: var(--success); }
+    .badge-warn { color: var(--warning); }
+    .badge-danger { color: var(--danger); }
+    .details-box { background: #1e293b; padding: 12px; border-radius: 6px; font-size: 13px; margin-top: 12px; white-space: pre-wrap; word-break: break-all; }
+    .btn-pdf { display: inline-block; margin-top: 15px; padding: 10px 18px; background: #059669; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; text-align: center; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>AWS Phishing Detection Engine</h1>
+    <p>Kiểm tra độ an toàn của Đường link, Nội dung Email và Tệp đính kèm</p>
+  </div>
+  <div class="card">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('link')">Quét Đường Link</button>
+      <button class="tab-btn" onclick="switchTab('email')">Quét Email</button>
+      <button class="tab-btn" onclick="switchTab('file')">Quét File / Tệp</button>
+    </div>
+
+    <div id="tab-link" class="input-group active">
+      <input type="text" id="input-link" placeholder="Nhập đường link cần kiểm tra (ví dụ: http://paypal-fake-login.com)">
+    </div>
+    <div id="tab-email" class="input-group">
+      <textarea id="input-email" rows="4" placeholder="Dán nội dung văn bản email khả nghi vào đây..."></textarea>
+    </div>
+    <div id="tab-file" class="input-group">
+      <input type="file" id="input-file">
+    </div>
+
+    <button class="btn-submit" id="btn-scan" onclick="startScan()">Bắt Đầu Phân Tích</button>
+
+    <div class="result-box" id="result-box">
+      <div id="status-text" style="font-weight: 600; text-align: center;">Đang xử lý dữ liệu...</div>
+      <div class="score-badge" id="score-val">--</div>
+      <div id="risk-val" style="text-align: center; font-weight: bold; margin-bottom: 10px;"></div>
+      <div class="details-box" id="details-text"></div>
+      <div style="text-align: center;">
+        <a href="#" target="_blank" class="btn-pdf" id="btn-download-pdf" style="display: none;">Tải Báo Cáo PDF (S3)</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const API_BASE = "https://kp3je8ijff.execute-api.ap-southeast-1.amazonaws.com";
+  let currentTab = 'link';
+
+  function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.input-group').forEach(g => g.classList.remove('active'));
+    event.target.classList.add('active');
+    document.getElementById(`tab-${tab}`).classList.add('active');
+  }
+
+  async function startScan() {
+    const btn = document.getElementById('btn-scan');
+    const resultBox = document.getElementById('result-box');
+    const statusText = document.getElementById('status-text');
+    const scoreVal = document.getElementById('score-val');
+    const riskVal = document.getElementById('risk-val');
+    const detailsText = document.getElementById('details-text');
+    const pdfBtn = document.getElementById('btn-download-pdf');
+
+    let bodyData = {};
+    if (currentTab === 'link') {
+      const val = document.getElementById('input-link').value.trim();
+      if (!val) return alert('Vui lòng nhập link!');
+      bodyData = { type: 'link', payload: val };
+    } else if (currentTab === 'email') {
+      const val = document.getElementById('input-email').value.trim();
+      if (!val) return alert('Vui lòng nhập nội dung email!');
+      bodyData = { type: 'email', payload: val };
+    } else if (currentTab === 'file') {
+      const file = document.getElementById('input-file').files[0];
+      if (!file) return alert('Vui lòng chọn file!');
+      bodyData = { type: 'file', payload: file.name };
+    }
+
+    btn.disabled = true;
+    resultBox.style.display = 'block';
+    pdfBtn.style.display = 'none';
+    statusText.innerText = "Đang gửi yêu cầu và sinh Job ID...";
+    scoreVal.innerText = "--";
+    riskVal.innerText = "";
+    detailsText.innerText = "";
+
+    try {
+      const res = await fetch(`${API_BASE}/scan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(bodyData)
+      });
+      const data = await res.json();
+      const jobId = data.job_id;
+
+      // Nếu là File và có upload_url: Tải file lên S3
+      if (currentTab === 'file' && data.upload_url) {
+        statusText.innerText = "Đang tải file lên S3 qua Presigned URL...";
+        const file = document.getElementById('input-file').files[0];
+        await fetch(data.upload_url, { method: 'PUT', body: file });
+      }
+
+      statusText.innerText = `Đang phân tích tác vụ (Job ID: ${jobId.substring(0,8)}...)...`;
+      pollStatus(jobId);
+    } catch (err) {
+      statusText.innerText = "Lỗi kết nối: " + err.message;
+      btn.disabled = false;
+    }
+  }
+
+  function pollStatus(jobId) {
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/scan/${jobId}`);
+        const data = await res.json();
+
+        if (data.status === 'COMPLETED') {
+          clearInterval(timer);
+          document.getElementById('btn-scan').disabled = false;
+          document.getElementById('status-text').innerText = "Phân tích hoàn tất!";
+          
+          const score = data.trust_score ?? 0;
+          const scoreEl = document.getElementById('score-val');
+          scoreEl.innerText = `${score} / 100`;
+          scoreEl.className = 'score-badge ' + (score >= 80 ? 'badge-safe' : (score >= 50 ? 'badge-warn' : 'badge-danger'));
+
+          document.getElementById('risk-val').innerText = data.result?.risk_level || "KẾT QUẢ ĐÃ XÁC ĐỊNH";
+          document.getElementById('details-text').innerText = JSON.stringify(data.result?.details || {}, null, 2);
+
+          // Kích hoạt nút tải PDF
+          const pdfBtn = document.getElementById('btn-download-pdf');
+          pdfBtn.style.display = 'inline-block';
+          pdfBtn.onclick = async (e) => {
+            e.preventDefault();
+            pdfBtn.innerText = "Đang tạo PDF...";
+            const pdfRes = await fetch(`${API_BASE}/scan/${jobId}?export=pdf`);
+            const pdfData = await pdfRes.json();
+            if (pdfData.download_url) {
+              window.open(pdfData.download_url, '_blank');
+              pdfBtn.innerText = "Tải Lại Báo Cáo PDF";
+            }
+          };
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }, 2000);
+  }
+</script>
+</body>
+</html>
