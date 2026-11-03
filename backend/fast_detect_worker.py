@@ -19,7 +19,7 @@ CACHE_TABLE = os.environ.get('CACHE_TABLE', 'PhishingScanCache')
 REPORTS_BUCKET = os.environ.get('REPORTS_BUCKET', '')
 
 # Cau hinh VirusTotal API Key chinh va danh sach API Key du phong (cach nhau boi dau phay)
-VT_API_KEY = os.environ.get('VT_API_KEY', '05dc8c9c3c3c5a60958c17721edf510cb828048919eb3861c0cbb389ab1abe7c')
+VT_API_KEY = os.environ.get('VT_API_KEY', '')
 VT_BACKUP_API_KEYS = os.environ.get('VT_BACKUP_API_KEYS', '')
 
 jobs_tbl = dynamodb.Table(JOBS_TABLE)
