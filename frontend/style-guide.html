@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <title>Trust Check</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar__in">
+      <a class="brand" href="#">
+        <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3l10 3.6v8.2c0 6.2-4.2 11.4-10 13.2C10.2 26.2 6 21 6 14.8V6.6L16 3z" fill="#0E1726" stroke="#38BDF8" stroke-width="1.6"/><path d="M11.5 15.8l3.2 3.2 6-6.6" fill="none" stroke="#38BDF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Trust Check</span>
+      </a>
+      <nav class="nav" aria-label="Chính">
+        <a href="#" class="nav__hide">Lịch sử</a>
+        <a href="#" class="nav__cta">Đăng nhập</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <span class="pill"><span class="dot" aria-hidden="true"></span>Sẵn sàng kiểm tra</span>
+      <h1>Kiểm tra link, email hoặc file <span class="accent">đáng ngờ</span></h1>
+      <p class="lead">Dán nội dung vào đây. Bạn sẽ nhận kết luận và lý do trong vài giây.</p>
+    </section>
+
+    <section class="card scan" aria-label="Nhập nội dung cần kiểm tra">
+      <div class="seg" role="group" aria-label="Loại nội dung">
+        <button class="seg__btn" type="button" data-tab="link" aria-pressed="true">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 11 18.7l1-1"/></svg>Link</button>
+        <button class="seg__btn" type="button" data-tab="email" aria-pressed="false">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>Email</button>
+        <button class="seg__btn" type="button" data-tab="file" aria-pressed="false">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>File</button>
+      </div>
+
+      <div id="p-link">
+        <label class="field-label" for="link">Đường link cần kiểm tra</label>
+        <div class="field">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 11 18.7l1-1"/></svg>
+          <input id="link" type="text" placeholder="https://example.com/dang-nhap" autocomplete="off" spellcheck="false">
+          <button class="btn" type="button" data-scan>Kiểm tra</button>
+        </div>
+        <p class="hint">Ví dụ: https://ten-mien.com/duong-dan</p>
+      </div>
+
+      <div id="p-email" hidden>
+        <label class="field-label" for="email">Nội dung email đáng ngờ</label>
+        <div class="field field--area">
+          <textarea id="email" placeholder="Dán toàn bộ nội dung email vào đây, kèm tiêu đề và địa chỉ người gửi nếu có."></textarea>
+        </div>
+        <div class="actions"><button class="btn" type="button" data-scan>Kiểm tra</button></div>
+      </div>
+
+      <div id="p-file" hidden>
+        <span class="field-label">Tệp cần kiểm tra</span>
+        <label class="drop">
+          <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>
+          <span><strong>Chọn tệp</strong> hoặc kéo thả vào đây</span>
+          <span class="hint">Dung lượng tối đa 10 MB</span>
+          <input class="sr-only" type="file">
+        </label>
+        <div class="actions"><button class="btn" type="button" data-scan>Kiểm tra</button></div>
+      </div>
+    </section>
+
+    <section id="result" class="card result level--warn" aria-live="polite" aria-label="Kết quả kiểm tra">
+      <div class="result__head">
+        <div>
+          <h2>Kết quả kiểm tra</h2>
+          <span class="code" id="code"></span>
+        </div>
+        <span class="badge"><span class="badge__icon" id="badge-icon" aria-hidden="true"></span><span id="badge-label"></span></span>
+      </div>
+
+      <div class="result__body">
+        <div class="ring" id="ring">
+          <svg viewBox="0 0 100 100" aria-hidden="true"><circle class="ring__bg" cx="50" cy="50" r="44"/><circle class="ring__fg" cx="50" cy="50" r="44"/></svg>
+          <div class="ring__num"><strong id="score"></strong><span id="score-max">trên 100</span></div>
+        </div>
+        <div class="verdict">
+          <h3 id="title"></h3>
+          <p id="sum"></p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h4 id="reasons-title">Vì sao có kết luận này</h4>
+        <ul class="reasons" id="reasons"></ul>
+      </div>
+
+      <div class="advice">
+        <strong>Bạn nên làm gì</strong>
+        <span id="advice-text"></span>
+      </div>
+
+      <details class="tech">
+        <summary>Chi tiết kỹ thuật</summary>
+        <pre class="term" id="term"></pre>
+      </details>
+    </section>
+
+    <p class="note">Kết quả dựa trên các dấu hiệu đã biết, chỉ mang tính tham khảo.</p>
+
+
+    <section class="how" aria-label="Cách hoạt động">
+      <h2>Cách hoạt động</h2>
+      <ol class="steps">
+        <li><span class="steps__n">1</span><div><strong>Dán nội dung</strong><p>Link, email hoặc file bạn thấy đáng ngờ.</p></div></li>
+        <li><span class="steps__n">2</span><div><strong>Hệ thống phân tích</strong><p>Kiểm tra các dấu hiệu lừa đảo và đối chiếu nguồn dữ liệu bảo mật.</p></div></li>
+        <li><span class="steps__n">3</span><div><strong>Nhận kết luận</strong><p>Điểm tin cậy, lý do và việc bạn nên làm tiếp theo.</p></div></li>
+      </ol>
+    </section>
+
+    <section class="covers" aria-label="Nội dung được kiểm tra">
+      <h2>Hệ thống kiểm tra những gì</h2>
+      <div class="grid3">
+        <article class="cover"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 11 18.7l1-1"/></svg><h3>Link</h3><p>Kết nối bảo mật, tên miền, từ khóa lừa đảo và danh sách địa chỉ độc hại.</p></article>
+        <article class="cover"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><h3>Email</h3><p>Cụm từ hối thúc, yêu cầu thông tin nhạy cảm và các link nằm trong thư.</p></article>
+        <article class="cover"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg><h3>File</h3><p>Mã băm, đuôi file giả mạo, mã thực thi ẩn và đối chiếu cơ sở dữ liệu mã độc.</p></article>
+      </div>
+    </section>
+
+    <div class="demo">
+      <span>Chỉ để xem thử, dữ liệu giả:</span>
+      <button class="chip" type="button" data-state="safe">An toàn</button>
+      <button class="chip" type="button" data-state="warn">Đáng ngờ</button>
+      <button class="chip" type="button" data-state="danger">Nguy hiểm</button>
+      <button class="chip" type="button" data-state="unknown">Chưa kiểm tra được</button>
+      <button class="chip" type="button" data-state="scan">Đang quét</button>
+    </div>
+  </main>
+
+  <script>
+    const STATES = {
+      safe: { lv: 'safe', icon: '✓', label: 'An toàn', score: 92, code: '#A4F9-2210',
+        title: 'Chưa thấy dấu hiệu lừa đảo',
+        sum: 'Địa chỉ dùng kết nối bảo mật và không giống mẫu giả mạo nào đã biết.',
+        reasons: ['Dùng HTTPS', 'Tên miền không giả mạo thương hiệu', 'Không nằm trong danh sách độc hại'],
+        advice: 'Bạn có thể mở link. Nếu trang bất ngờ đòi mật khẩu hoặc mã OTP, hãy dừng lại.',
+        tech: [['domain', 'example.com'], ['https', 'có'], ['keywords', '0'], ['verdict', 'safe']] },
+      warn: { lv: 'warn', icon: '!', label: 'Đáng ngờ', score: 60, code: '#B71C-0457',
+        title: 'Có vài dấu hiệu cần cẩn thận',
+        sum: 'Link chưa chắc độc hại nhưng có đặc điểm thường gặp ở trang giả mạo.',
+        reasons: ['Không dùng HTTPS', 'Chứa từ khóa nhạy cảm: login, security', 'Đuôi tên miền hay bị lạm dụng (.xyz)'],
+        advice: 'Đừng nhập thông tin cá nhân. Hãy tự gõ địa chỉ chính thức của dịch vụ vào trình duyệt.',
+        tech: [['domain', 'paypal-security-update.xyz'], ['https', 'không'], ['keywords', 'login, security'], ['tld', '.xyz'], ['verdict', 'suspicious']] },
+      danger: { lv: 'danger', icon: '✕', label: 'Nguy hiểm', score: 12, code: '#C03E-9981',
+        title: 'Nhiều khả năng là lừa đảo',
+        sum: 'Một số công cụ bảo mật đã đánh dấu địa chỉ này là độc hại.',
+        reasons: ['Có công cụ quét báo độc hại', 'Tên miền giả mạo thương hiệu', 'Dùng địa chỉ IP thay cho tên miền'],
+        advice: 'Không mở link và không trả lời. Nếu đã nhập thông tin, hãy đổi mật khẩu ngay.',
+        tech: [['host', '185.220.101.7'], ['https', 'không'], ['reputation', 'flagged'], ['verdict', 'dangerous']] },
+      unknown: { lv: 'unknown', icon: '?', label: 'Chưa kiểm tra được', score: null, code: '#D8A2-0000',
+        title: 'Chưa có đủ dữ liệu để kết luận',
+        sum: 'Hệ thống chưa lấy được kết quả. Điều này không có nghĩa là link an toàn.',
+        reasons: ['Dịch vụ tra cứu đang bận hoặc đã hết lượt'],
+        advice: 'Hãy thử lại sau ít phút. Trong lúc chờ, đừng mở link.',
+        tech: [['status', 'no_data'], ['verdict', 'unknown']] },
+      scan: { lv: 'scan', icon: '…', label: 'Đang quét', score: null, code: '#E5B7-····',
+        title: 'Đang phân tích…',
+        sum: 'Thường mất vài giây. Bạn có thể giữ nguyên trang này.',
+        reasons: ['Kiểm tra cấu trúc địa chỉ', 'Đối chiếu danh sách nguồn đáng tin', 'Tổng hợp kết luận'],
+        advice: '', tech: [] }
+    };
+
+    const $ = (id) => document.getElementById(id);
+
+    function show(key) {
+      const s = STATES[key];
+      const scanning = key === 'scan';
+      $('result').className = 'card result level--' + s.lv + (scanning ? ' is-scanning' : '');
+      $('badge-icon').textContent = s.icon;
+      $('badge-label').textContent = s.label;
+      $('code').textContent = 'Mã kiểm tra ' + s.code;
+      $('score').textContent = s.score === null ? '?' : s.score;
+      $('score-max').hidden = s.score === null;
+      $('ring').style.setProperty('--p', s.score === null ? 0 : s.score / 100);
+      $('title').textContent = s.title;
+      $('sum').textContent = s.sum;
+      $('reasons-title').textContent = scanning ? 'Đang thực hiện' : 'Vì sao có kết luận này';
+      $('advice-text').textContent = s.advice;
+      const ul = $('reasons');
+      ul.replaceChildren();
+      s.reasons.forEach((t) => {
+        const li = document.createElement('li');
+        li.textContent = t;
+        ul.appendChild(li);
+      });
+      const rows = s.tech.map(([k, v]) => k.padEnd(12) + v);
+      $('term').textContent = ['$ trustcheck --scan', ...rows].join('\n');
+    }
+
+    document.querySelectorAll('.seg__btn').forEach((b) => b.addEventListener('click', () => {
+      document.querySelectorAll('.seg__btn').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      ['link', 'email', 'file'].forEach((k) => { $('p-' + k).hidden = k !== b.dataset.tab; });
+    }));
+
+    document.querySelectorAll('.chip').forEach((c) => c.addEventListener('click', () => show(c.dataset.state)));
+
+    document.querySelectorAll('[data-scan]').forEach((b) => b.addEventListener('click', () => {
+      show('scan');
+      $('result').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      setTimeout(() => show('warn'), 2400);
+    }));
+
+    show('warn');
+  </script>
+</body>
+</html>
