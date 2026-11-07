@@ -216,5 +216,11 @@ body::before { display: none; }
 .alert { margin: 14px 0 0; padding: 10px 14px; border: 1px solid rgba(214, 69, 69, .35); border-radius: var(--radius-sm); background: rgba(179, 38, 30, .08); color: #B3261E; font-size: .9375rem; }
 .file-name { margin: 10px 0 0; font-family: var(--font-mono); font-size: .875rem; color: var(--ink); word-break: break-all; }
 
-/* Tiêu đề chính ngắt dòng cân đối, không để một chữ rớt lẻ */
+
 .hero h1 { text-wrap: balance; }
+
+@media (max-width: 600px) {
+  .seg { display: flex; }
+  .seg__btn { flex: 1; justify-content: center; padding: 8px 10px; }
+  .field > .ico { display: none; }
+}
