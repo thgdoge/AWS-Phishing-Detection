@@ -38,8 +38,7 @@ Sửa `API_BASE` trong `js/config.js`.
 - Nội dung do người dùng nhập và dữ liệu từ máy chủ chỉ được đưa vào trang bằng `textContent`, không dùng `innerHTML`.
 - Không đặt khóa AWS, API key hay mật khẩu vào bất kỳ file nào trong `frontend/`. Mọi file ở đây ai cũng xem được.
 - Kiểm tra đầu vào ở trình duyệt chỉ để báo lỗi sớm; backend vẫn phải kiểm tra lại.
+## Phạm vi
 
-## Việc chưa làm
-
-- Đăng nhập, trang Lịch sử, trang quản trị: chờ backend và cấu hình Cognito.
-- Triển khai lên S3 và cấu hình CORS: làm cùng người phụ trách hạ tầng.
+- Trang không có đăng nhập và không lưu lịch sử quét ở máy chủ, nên không phát sinh dữ liệu người dùng.
+- Việc còn lại: triển khai lên S3 và cấu hình CORS (làm cùng người phụ trách hạ tầng).
