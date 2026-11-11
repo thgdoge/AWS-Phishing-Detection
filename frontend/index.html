@@ -3,177 +3,142 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hệ Thống Quét & Phát Hiện Phishing</title>
-  <style>
-    :root { --primary: #2563eb; --danger: #dc2626; --warning: #d97706; --success: #16a34a; --bg: #0f172a; --card: #1e293b; --text: #f8fafc; }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-    body { background-color: var(--bg); color: var(--text); padding: 40px 20px; display: flex; justify-content: center; }
-    .container { width: 100%; max-width: 720px; }
-    .header { text-align: center; margin-bottom: 30px; }
-    .header h1 { font-size: 28px; margin-bottom: 8px; color: #60a5fa; }
-    .card { background: var(--card); border-radius: 12px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid #334155; }
-    .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #334155; padding-bottom: 12px; }
-    .tab-btn { background: transparent; border: none; color: #94a3b8; padding: 8px 16px; font-weight: 600; cursor: pointer; border-radius: 6px; }
-    .tab-btn.active { background: #334155; color: #fff; }
-    .input-group { margin-bottom: 16px; display: none; }
-    .input-group.active { display: block; }
-    input[type="text"], textarea { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #fff; font-size: 15px; }
-    input[type="file"] { width: 100%; padding: 10px; background: #0f172a; border-radius: 8px; border: 1px dashed #475569; color: #94a3b8; }
-    .btn-submit { width: 100%; padding: 12px; background: var(--primary); border: none; border-radius: 8px; color: white; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.2s; }
-    .btn-submit:hover { opacity: 0.9; }
-    .btn-submit:disabled { background: #64748b; cursor: not-allowed; }
-    .result-box { margin-top: 24px; padding: 20px; border-radius: 8px; background: #0f172a; border: 1px solid #334155; display: none; }
-    .score-badge { font-size: 36px; font-weight: 800; text-align: center; margin: 15px 0; }
-    .badge-safe { color: var(--success); }
-    .badge-warn { color: var(--warning); }
-    .badge-danger { color: var(--danger); }
-    .details-box { background: #1e293b; padding: 12px; border-radius: 6px; font-size: 13px; margin-top: 12px; white-space: pre-wrap; word-break: break-all; }
-    .btn-pdf { display: inline-block; margin-top: 15px; padding: 10px 18px; background: #059669; color: white; text-decoration: none; border-radius: 6px; font-weight: 600; text-align: center; }
-  </style>
+  <meta name="color-scheme" content="light">
+  <meta name="referrer" content="no-referrer">
+  <title>Trust Check - Kiểm tra link, email, file đáng ngờ</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 3l10 3.6v8.2c0 6.2-4.2 11.4-10 13.2C10.2 26.2 6 21 6 14.8V6.6L16 3z' fill='%230E1726' stroke='%2338BDF8' stroke-width='1.6'/%3E%3Cpath d='M11.5 15.8l3.2 3.2 6-6.6' fill='none' stroke='%2338BDF8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-<div class="container">
-  <div class="header">
-    <h1>AWS Phishing Detection Engine</h1>
-    <p>Kiểm tra độ an toàn của Đường link, Nội dung Email và Tệp đính kèm</p>
-  </div>
-  <div class="card">
-    <div class="tabs">
-      <button class="tab-btn active" onclick="switchTab('link')">Quét Đường Link</button>
-      <button class="tab-btn" onclick="switchTab('email')">Quét Email</button>
-      <button class="tab-btn" onclick="switchTab('file')">Quét File / Tệp</button>
+  <header class="topbar">
+    <div class="wrap topbar__in">
+      <a class="brand" href="./">
+        <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3l10 3.6v8.2c0 6.2-4.2 11.4-10 13.2C10.2 26.2 6 21 6 14.8V6.6L16 3z" fill="#0E1726" stroke="#38BDF8" stroke-width="1.6"/><path d="M11.5 15.8l3.2 3.2 6-6.6" fill="none" stroke="#38BDF8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Trust Check</span>
+      </a>
+      <nav class="nav" aria-label="Chính">
+        <a href="#" class="nav__hide">Lịch sử</a>
+        <a href="#" class="nav__cta">Đăng nhập</a>
+      </nav>
     </div>
+  </header>
 
-    <div id="tab-link" class="input-group active">
-      <input type="text" id="input-link" placeholder="Nhập đường link cần kiểm tra (ví dụ: http://paypal-fake-login.com)">
-    </div>
-    <div id="tab-email" class="input-group">
-      <textarea id="input-email" rows="4" placeholder="Dán nội dung văn bản email khả nghi vào đây..."></textarea>
-    </div>
-    <div id="tab-file" class="input-group">
-      <input type="file" id="input-file">
-    </div>
+  <main class="wrap">
+    <section class="hero">
+      <span class="pill"><span class="dot" aria-hidden="true"></span>Sẵn sàng kiểm tra</span>
+      <h1>Kiểm tra link, email hoặc file <span class="accent">đáng ngờ</span></h1>
+      <p class="lead">Dán nội dung vào đây. Bạn sẽ nhận kết luận và lý do trong vài giây.</p>
+    </section>
 
-    <button class="btn-submit" id="btn-scan" onclick="startScan()">Bắt Đầu Phân Tích</button>
+    <section class="card scan" aria-label="Nhập nội dung cần kiểm tra">
+      <form id="scan-form" novalidate>
+        <div class="seg" role="group" aria-label="Loại nội dung">
+          <button class="seg__btn" type="button" data-tab="link" aria-pressed="true">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 11 18.7l1-1"/></svg>Link</button>
+          <button class="seg__btn" type="button" data-tab="email" aria-pressed="false">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>Email</button>
+          <button class="seg__btn" type="button" data-tab="file" aria-pressed="false">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>File</button>
+        </div>
 
-    <div class="result-box" id="result-box">
-      <div id="status-text" style="font-weight: 600; text-align: center;">Đang xử lý dữ liệu...</div>
-      <div class="score-badge" id="score-val">--</div>
-      <div id="risk-val" style="text-align: center; font-weight: bold; margin-bottom: 10px;"></div>
-      <div class="details-box" id="details-text"></div>
-      <div style="text-align: center;">
-        <a href="#" target="_blank" class="btn-pdf" id="btn-download-pdf" style="display: none;">Tải Báo Cáo PDF (S3)</a>
+        <div id="p-link">
+          <label class="field-label" for="link">Đường link cần kiểm tra</label>
+          <div class="field">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 11 18.7l1-1"/></svg>
+            <input id="link" type="text" placeholder="https://example.com/dang-nhap" autocomplete="off" spellcheck="false">
+            <button class="btn" type="submit" data-submit>Kiểm tra</button>
+          </div>
+          <p class="hint">Ví dụ: https://ten-mien.com/duong-dan</p>
+        </div>
+
+        <div id="p-email" hidden>
+          <label class="field-label" for="email">Nội dung email đáng ngờ</label>
+          <div class="field field--area">
+            <textarea id="email" placeholder="Dán toàn bộ nội dung email vào đây, kèm tiêu đề và địa chỉ người gửi nếu có."></textarea>
+          </div>
+          <div class="actions"><button class="btn" type="submit" data-submit>Kiểm tra</button></div>
+        </div>
+
+        <div id="p-file" hidden>
+          <span class="field-label">Tệp cần kiểm tra</span>
+          <label class="drop">
+            <svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5M5 20h14"/></svg>
+            <span><strong>Chọn tệp</strong> hoặc kéo thả vào đây</span>
+            <span class="hint">Dung lượng tối đa 10 MB</span>
+            <input class="sr-only" id="file" type="file">
+          </label>
+          <p class="file-name" id="file-name" hidden></p>
+          <div class="actions"><button class="btn" type="submit" data-submit>Kiểm tra</button></div>
+        </div>
+
+        <p class="alert" id="form-error" role="alert" hidden></p>
+      </form>
+    </section>
+
+    <section id="result" class="card result level--unknown" aria-live="polite" aria-label="Kết quả kiểm tra" hidden>
+      <div class="result__head">
+        <div>
+          <h2>Kết quả kiểm tra</h2>
+          <span class="code" id="code"></span>
+        </div>
+        <span class="badge"><span class="badge__icon" id="badge-icon" aria-hidden="true"></span><span id="badge-label"></span></span>
       </div>
-    </div>
-  </div>
-</div>
 
-<script>
-  const API_BASE = "https://kp3je8ijff.execute-api.ap-southeast-1.amazonaws.com";
-  let currentTab = 'link';
+      <div class="result__body">
+        <div class="ring" id="ring">
+          <svg viewBox="0 0 100 100" aria-hidden="true"><circle class="ring__bg" cx="50" cy="50" r="44"/><circle class="ring__fg" cx="50" cy="50" r="44"/></svg>
+          <div class="ring__num"><strong id="score"></strong><span id="score-max">trên 100</span></div>
+        </div>
+        <div class="verdict">
+          <h3 id="title"></h3>
+          <p id="sum"></p>
+        </div>
+      </div>
 
-  function switchTab(tab) {
-    currentTab = tab;
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.input-group').forEach(g => g.classList.remove('active'));
-    event.target.classList.add('active');
-    document.getElementById(`tab-${tab}`).classList.add('active');
-  }
+      <div class="section">
+        <h4 id="reasons-title">Vì sao có kết luận này</h4>
+        <ul class="reasons" id="reasons"></ul>
+      </div>
 
-  async function startScan() {
-    const btn = document.getElementById('btn-scan');
-    const resultBox = document.getElementById('result-box');
-    const statusText = document.getElementById('status-text');
-    const scoreVal = document.getElementById('score-val');
-    const riskVal = document.getElementById('risk-val');
-    const detailsText = document.getElementById('details-text');
-    const pdfBtn = document.getElementById('btn-download-pdf');
+      <div class="advice" id="advice">
+        <strong>Bạn nên làm gì</strong>
+        <span id="advice-text"></span>
+      </div>
 
-    let bodyData = {};
-    if (currentTab === 'link') {
-      const val = document.getElementById('input-link').value.trim();
-      if (!val) return alert('Vui lòng nhập link!');
-      bodyData = { type: 'link', payload: val };
-    } else if (currentTab === 'email') {
-      const val = document.getElementById('input-email').value.trim();
-      if (!val) return alert('Vui lòng nhập nội dung email!');
-      bodyData = { type: 'email', payload: val };
-    } else if (currentTab === 'file') {
-      const file = document.getElementById('input-file').files[0];
-      if (!file) return alert('Vui lòng chọn file!');
-      bodyData = { type: 'file', payload: file.name };
-    }
+      <details class="tech" id="tech">
+        <summary>Chi tiết kỹ thuật</summary>
+        <pre class="term" id="term"></pre>
+      </details>
+    </section>
 
-    btn.disabled = true;
-    resultBox.style.display = 'block';
-    pdfBtn.style.display = 'none';
-    statusText.innerText = "Đang gửi yêu cầu và sinh Job ID...";
-    scoreVal.innerText = "--";
-    riskVal.innerText = "";
-    detailsText.innerText = "";
+    <p class="note">Kết quả dựa trên các dấu hiệu đã biết, chỉ mang tính tham khảo.</p>
 
-    try {
-      const res = await fetch(`${API_BASE}/scan`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyData)
-      });
-      const data = await res.json();
-      const jobId = data.job_id;
+    <section class="how" aria-label="Cách hoạt động">
+      <h2>Cách hoạt động</h2>
+      <ol class="steps">
+        <li><span class="steps__n">1</span><div><strong>Dán nội dung</strong><p>Link, email hoặc file bạn thấy đáng ngờ.</p></div></li>
+        <li><span class="steps__n">2</span><div><strong>Hệ thống phân tích</strong><p>Kiểm tra các dấu hiệu lừa đảo và đối chiếu nguồn dữ liệu bảo mật.</p></div></li>
+        <li><span class="steps__n">3</span><div><strong>Nhận kết luận</strong><p>Điểm tin cậy, lý do và việc bạn nên làm tiếp theo.</p></div></li>
+      </ol>
+    </section>
 
-      // Nếu là File và có upload_url: Tải file lên S3
-      if (currentTab === 'file' && data.upload_url) {
-        statusText.innerText = "Đang tải file lên S3 qua Presigned URL...";
-        const file = document.getElementById('input-file').files[0];
-        await fetch(data.upload_url, { method: 'PUT', body: file });
-      }
+    <section class="covers" aria-label="Nội dung được kiểm tra">
+      <h2>Hệ thống kiểm tra những gì</h2>
+      <div class="grid3">
+        <article class="cover"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3A4 4 0 0 0 11 18.7l1-1"/></svg><h3>Link</h3><p>Kết nối bảo mật, tên miền, từ khóa lừa đảo và danh sách địa chỉ độc hại.</p></article>
+        <article class="cover"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg><h3>Email</h3><p>Cụm từ hối thúc, yêu cầu thông tin nhạy cảm và các link nằm trong thư.</p></article>
+        <article class="cover"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg><h3>File</h3><p>Mã băm, đuôi file giả mạo, mã thực thi ẩn và đối chiếu cơ sở dữ liệu mã độc.</p></article>
+      </div>
+    </section>
+    <div style="height: 56px"></div>
+  </main>
 
-      statusText.innerText = `Đang phân tích tác vụ (Job ID: ${jobId.substring(0,8)}...)...`;
-      pollStatus(jobId);
-    } catch (err) {
-      statusText.innerText = "Lỗi kết nối: " + err.message;
-      btn.disabled = false;
-    }
-  }
-
-  function pollStatus(jobId) {
-    const timer = setInterval(async () => {
-      try {
-        const res = await fetch(`${API_BASE}/scan/${jobId}`);
-        const data = await res.json();
-
-        if (data.status === 'COMPLETED') {
-          clearInterval(timer);
-          document.getElementById('btn-scan').disabled = false;
-          document.getElementById('status-text').innerText = "Phân tích hoàn tất!";
-          
-          const score = data.trust_score ?? 0;
-          const scoreEl = document.getElementById('score-val');
-          scoreEl.innerText = `${score} / 100`;
-          scoreEl.className = 'score-badge ' + (score >= 80 ? 'badge-safe' : (score >= 50 ? 'badge-warn' : 'badge-danger'));
-
-          document.getElementById('risk-val').innerText = data.result?.risk_level || "KẾT QUẢ ĐÃ XÁC ĐỊNH";
-          document.getElementById('details-text').innerText = JSON.stringify(data.result?.details || {}, null, 2);
-
-          // Kích hoạt nút tải PDF
-          const pdfBtn = document.getElementById('btn-download-pdf');
-          pdfBtn.style.display = 'inline-block';
-          pdfBtn.onclick = async (e) => {
-            e.preventDefault();
-            pdfBtn.innerText = "Đang tạo PDF...";
-            const pdfRes = await fetch(`${API_BASE}/scan/${jobId}?export=pdf`);
-            const pdfData = await pdfRes.json();
-            if (pdfData.download_url) {
-              window.open(pdfData.download_url, '_blank');
-              pdfBtn.innerText = "Tải Lại Báo Cáo PDF";
-            }
-          };
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }, 2000);
-  }
-</script>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>
