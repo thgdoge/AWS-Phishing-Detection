@@ -127,9 +127,6 @@ body::before {
 .term { margin: 0; padding: 18px 26px 22px; overflow-x: auto; background: #050A13; border-top: 1px solid var(--line-soft); color: #B7C5DA; font: .8125rem/1.75 var(--font-mono); }
 
 .note { margin: 0; padding: 20px 0 6px; color: var(--muted); font-size: .875rem; }
-.demo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px 0 56px; color: var(--muted); font-size: .875rem; }
-.chip { border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 8px; padding: 6px 12px; font: inherit; cursor: pointer; }
-.chip:hover { border-color: var(--brand); color: var(--brand); }
 
 /* Trạng thái đang quét */
 .is-scanning .ring__num, .is-scanning .advice, .is-scanning .tech { display: none; }

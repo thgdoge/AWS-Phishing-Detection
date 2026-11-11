@@ -72,6 +72,8 @@ function techRows(type, d, errorText) {
     if (d.virustotal_report) add("virustotal", (d.virustotal_report.status || "") + " malicious=" + (d.virustotal_report.malicious ?? 0));
   } else if (type === "email") {
     add("urls", d.extracted_urls_count);
+        add("urgent", Array.isArray(d.urgent_phrases_found) ? d.urgent_phrases_found.length : undefined);
+    add("credentials", d.asks_sensitive_credentials === undefined ? undefined : (d.asks_sensitive_credentials ? "yêu cầu" : "không"));
     add("vt_malicious", d.max_malicious_detections);
     add("spf/dkim", (d.spf_fail_detected || d.dkim_fail_detected) ? "fail" : undefined);
   } else if (type === "file") {
