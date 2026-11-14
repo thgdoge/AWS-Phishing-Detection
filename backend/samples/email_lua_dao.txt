@@ -1,0 +1,9 @@
+From: "Vietcombank" <noreply@vcb-thongbao.xyz>
+Reply-To: ho-tro@gmail-collector.net
+Subject: Cảnh báo bảo mật tài khoản
+Authentication-Results: mx.example.org; spf=softfail; dkim=none; dmarc=fail
+Content-Type: text/plain; charset=utf-8
+
+Tài khoản của bạn sẽ bị khóa trong 24h.
+Vui lòng xác minh ngay, nhập mật khẩu và mã OTP tại:
+http://vcb-thongbao.xyz/login

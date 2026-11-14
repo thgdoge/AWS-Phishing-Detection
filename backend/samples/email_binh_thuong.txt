@@ -1,0 +1,5 @@
+From: Nguyen Van A <a@congty.example.org>
+Subject: Lich hop thu Hai
+Content-Type: text/plain; charset=utf-8
+
+Chao ca nha, thu Hai 9h chung ta hop o phong 3. Tai lieu o day: https://www.example.org/tai-lieu
