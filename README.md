@@ -75,8 +75,12 @@ phishing-detection-aws/
 ├── backend/
 │   ├── ingest_lambda.py          # Lambda tiếp nhận request, check cache, điều phối SQS
 │   ├── status_lambda.py          # Lambda tra cứu kết quả quét & xuất file PDF lên S3
-│   ├── fast_detect_worker.py     # Worker phân tích Link, Email & tính điểm Trust Score
-│   └── file_detect_worker.py     # Worker phân tích File (Hash, Magic Bytes, YARA, Entropy)
+│   ├── fast_detect_worker.py     # Handler Detect Worker cho Link & Email
+│   ├── file_detect_worker.py     # Handler Detect Worker cho File
+│   ├── common/                   # Scoring Engine (scoring.py), pipeline, lưu trữ, mạng, nguồn uy tín
+│   ├── detectors/                # Detector Link / Email / File
+│   ├── tests/                    # 101 unit test (python -m unittest discover -s tests -t .)
+│   └── README.md                 # Tài liệu chi tiết Detect Worker & Scoring Engine
 └── README.md                     # Tài liệu hướng dẫn hệ thống
 ```
 
@@ -132,46 +136,59 @@ phishing-detection-aws/
     "job_id": "e786a5b8-fcec-4f4b-beb4-e53c3eb1f68e",
     "status": "COMPLETED",
     "type": "link",
-    "trust_score": 25,
+    "trust_score": 10,
     "result": {
-      "trust_score": 25,
-      "risk_level": "DANGEROUS (PHISHING CAO)",
+      "trust_score": 10,
+      "risk_level": "DANGEROUS",
+      "confidence": "HIGH",
+      "reasons": [
+        "Tên miền mới đăng ký cách đây 3 ngày",
+        "Tên miền chứa tên \"paypal\" nhưng không phải trang chính thức",
+        "Chứa từ khóa nhạy cảm: login, update, security"
+      ],
+      "signals": [
+        {"code": "DOMAIN_NEW", "category": "domain", "penalty": 35, "reason": "Tên miền mới đăng ký cách đây 3 ngày"}
+      ],
       "details": {
         "domain": "paypal-security-update-fake.com",
         "uses_https": false,
-        "suspicious_keywords": ["paypal", "security", "update"],
+        "suspicious_keywords": ["login", "update", "security"],
+        "domain_age_days": 3,
         "redirection_count": 0
       },
+      "scoring_version": "2.0",
       "scanned_at": 1792123838
     }
   }
   ```
-
-### 4.3. Xuất Báo cáo PDF Bảo mật (GET `/scan/{job_id}?export=pdf`)
-* **Response:**
-  ```json
-  {
-    "job_id": "e786a5b8-fcec-4f4b-beb4-e53c3eb1f68e",
-    "status": "COMPLETED",
-    "download_url": "https://phishing-reports-logs-....s3.amazonaws.com/reports/.../phishing_report.pdf?X-Amz-Expires=900"
-  }
-  ```
+  `risk_level` nhận `SAFE`, `SUSPICIOUS`, `DANGEROUS`, hoặc `SCAN ERROR` khi quét lỗi (frontend hiển thị "Chưa kiểm tra được").
+  `confidence` (`HIGH`/`MEDIUM`/`LOW`) cho biết kết luận dựa trên bao nhiêu nguồn uy tín bên ngoài đã trả lời được.
 
 ---
 
 ## 5. Quy tắc Đánh giá & Chấm điểm (Scoring Engine)
 
-Hệ thống áp dụng thang điểm từ **0 đến 100** (khởi điểm 100 điểm - an toàn tuyệt đối):
+Thang điểm **0 đến 100** (khởi điểm 100 - an toàn tuyệt đối). Logic nằm ở `backend/common/scoring.py`:
+detector chỉ phát hiện, còn **bảng luật `RULES`** quyết định điểm trừ, lý do hiển thị và mức trần.
 
 * **Thang phân loại rủi ro:**
-  * **$\ge 80$ điểm:** `SAFE (AN TOÀN)` - Không phát hiện dấu hiệu bất thường.
-  * **$50 - 79$ điểm:** `SUSPICIOUS (CẢNH BÁO / ĐÁNG NGỜ)` - Có dấu hiệu rủi ro tiềm ẩn.
-  * **$< 50$ điểm:** `DANGEROUS (NGUY HIỂM / PHISHING)` - Phát hiện hành vi lừa đảo hoặc mã độc rõ rệt.
+  * **$\ge 80$ điểm:** `SAFE` - Không phát hiện dấu hiệu bất thường.
+  * **$50 - 79$ điểm:** `SUSPICIOUS` - Có dấu hiệu rủi ro tiềm ẩn.
+  * **$< 50$ điểm:** `DANGEROUS` - Phát hiện hành vi lừa đảo hoặc mã độc rõ rệt.
 
-* **Tiêu chí trừ điểm:**
-  * **Link:** Không dùng HTTPS (-15), dùng IP thay vì domain (-35), TLD rủi ro cao (-20), chứa từ khóa giả mạo nhạy cảm (-20/từ), tên miền nhiều dấu gạch ngang (-15), phát hiện chuỗi chuyển hướng ẩn (-15).
-  * **Email:** Thất bại kiểm thực SPF/DKIM (-30), vi phạm DMARC (-20), cụm từ hối thúc khẩn cấp (-20/cụm), đòi hỏi mật khẩu/OTP/thẻ ngân hàng (-25).
-  * **File:** Double Extension (-45), Magic Bytes không khớp với đuôi file (-45), khớp chữ ký mã độc YARA tĩnh (-25/chữ ký), Shannon Entropy $> 7.5$ (-35), ClamAV phát hiện virus (về thẳng 0 điểm).
+* **Cơ chế chống trừ điểm quá tay:** mỗi `code` chỉ tính một lần; mỗi nhóm tín hiệu (URL, tên miền, người gửi,
+  nội dung, tệp...) có mức trừ tối đa riêng; tín hiệu nghiêm trọng đặt *trần điểm* (ClamAV/MalwareBazaar phát hiện
+  => 0 điểm, Google Safe Browsing/URLhaus báo => tối đa 20 điểm, từ 5 engine VirusTotal báo mã độc cho file => 0 điểm).
+
+* **Các nhóm kiểm tra chính** (số điểm cụ thể xem bảng trong `backend/README.md`):
+  * **Link:** HTTPS, IP thay domain (kể cả IP dạng số/hex), TLD rủi ro, từ khóa nhạy cảm (so khớp theo token),
+    giả mạo thương hiệu (kể cả `paypa1`, `rnicrosoft`), ký tự `@`, Punycode, link rút gọn, tuổi tên miền (RDAP),
+    chuỗi chuyển hướng, chứng chỉ SSL, trang đích có ô mật khẩu, VirusTotal / Safe Browsing / URLhaus.
+  * **Email:** SPF/DKIM/DMARC từ header thật, Reply-To / Return-Path / tên hiển thị giả mạo, cụm từ hối thúc và đòi
+    thông tin nhạy cảm (tiếng Việt có dấu lẫn không dấu), văn bản link khác địa chỉ thật, điểm của từng link và tệp đính kèm.
+  * **File:** đuôi kép / ký tự RLO, magic bytes so với đuôi, luật kiểu YARA, macro và template từ xa trong Office,
+    mã chủ động trong PDF, tệp thực thi trong file nén, biểu mẫu mật khẩu trong HTML, Shannon Entropy $> 7.5$
+    (chỉ với tệp thực thi/script), VirusTotal, MalwareBazaar, ClamAV (nếu có).
 
 ---
 
