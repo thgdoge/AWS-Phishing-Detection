@@ -1,4 +1,3 @@
-"""Chuẩn hóa văn bản để so khớp từ khóa tiếng Việt có dấu lẫn không dấu."""
 import re
 import unicodedata
 

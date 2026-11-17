@@ -1,4 +1,3 @@
-"""Lưu trữ kết quả: DynamoDB (jobs + cache) và S3 (audit log). boto3 được import lười."""
 from __future__ import annotations
 
 import json
@@ -11,12 +10,10 @@ CACHE_TTL_SECONDS = 24 * 3600
 
 
 def to_dynamo(obj: Any) -> Any:
-    """DynamoDB (boto3 resource) không nhận float. Chuyển float -> Decimal."""
     return json.loads(json.dumps(obj, default=str), parse_float=Decimal)
 
 
 def from_dynamo(obj: Any) -> Any:
-    """Decimal -> int/float để json.dumps / so sánh bình thường."""
     if isinstance(obj, Decimal):
         return int(obj) if obj == obj.to_integral_value() else float(obj)
     if isinstance(obj, dict):

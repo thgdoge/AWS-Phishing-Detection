@@ -1,18 +1,3 @@
-"""Scoring Engine - tầng chấm điểm dùng chung cho Link, Email và File.
-
-Nguyên tắc thiết kế
--------------------
-* Detector chỉ *phát hiện* và trả về danh sách ``Finding`` (mã + bằng chứng).
-  Mọi quyết định về điểm trừ / lý do hiển thị / mức trần đều nằm ở bảng ``RULES``
-  bên dưới, nên muốn chỉnh trọng số chỉ cần sửa một chỗ.
-* Điểm khởi đầu 100. Mỗi nhóm (``category``) có mức trừ tối đa riêng (``CATEGORY_CAPS``)
-  để nhiều tín hiệu cùng bản chất không bị cộng dồn quá tay (tránh "trừ hai lần").
-* Một số tín hiệu nghiêm trọng đặt ``ceiling``: điểm cuối không thể cao hơn mức trần
-  (ví dụ ClamAV phát hiện virus => 0, Google Safe Browsing báo phishing => <= 20).
-* Kết quả luôn kèm ``reasons`` (tiếng Việt) và ``signals`` (giải thích từng điểm trừ),
-  frontend đã tự hiển thị ``result.reasons`` nếu có.
-* ``confidence`` cho biết kết luận dựa trên bao nhiêu nguồn uy tín bên ngoài trả lời được.
-"""
 from __future__ import annotations
 
 import time
@@ -39,7 +24,6 @@ CATEGORY_CAPS: Dict[str, int] = {
 
 @dataclass(frozen=True)
 class Finding:
-    """Một phát hiện từ detector. ``value`` dùng cho luật theo bậc/đơn vị."""
     code: str
     value: float = 1
     detail: str = ''
@@ -216,11 +200,6 @@ def _evaluate(finding: Finding) -> Optional[Signal]:
 def compute_score(findings: List[Finding], *, reputation_ok: int = 0,
                   reputation_needed: bool = True) -> ScoreResult:
     """Tổng hợp các finding thành điểm tin cậy 0-100.
-
-    ``reputation_ok``: số nguồn uy tín bên ngoài đã trả lời được (VirusTotal,
-    Safe Browsing, URLhaus, MalwareBazaar...). Dùng để ước lượng ``confidence``.
-    ``reputation_needed=False``: không có gì để tra cứu (vd. email chỉ có chữ) nên
-    không coi là thiếu nguồn; confidence tối đa MEDIUM vì chỉ dựa vào luật nội dung.
     """
     # 1. Mỗi mã chỉ tính một lần (giữ bản trừ nặng nhất) để không cộng trùng.
     best: Dict[str, Signal] = {}

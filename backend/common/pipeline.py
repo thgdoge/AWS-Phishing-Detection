@@ -1,13 +1,3 @@
-"""Khung xử lý dùng chung cho cả hai worker: đọc SQS record -> phân tích -> lưu kết quả.
-
-Chính sách lỗi
---------------
-* Lỗi trong *phân tích* (bug, file hỏng, API ngoài sập...) KHÔNG làm Lambda ném lỗi.
-  Job được ghi COMPLETED với risk_level 'SCAN ERROR' để frontend dừng chờ và báo
-  "Chưa kiểm tra được". Không retry vô ích và không đẩy message vào DLQ.
-* Lỗi khi *lưu* (DynamoDB lỗi...) thì để ném ra: SQS sẽ retry, hết lượt thì vào DLQ.
-* Message được giao lại sau khi job đã COMPLETED sẽ bị bỏ qua (idempotent).
-"""
 from __future__ import annotations
 
 import json

@@ -1,18 +1,3 @@
-"""Client cho các nguồn uy tín bên ngoài.
-
-Mọi hàm trả về dict có khóa ``ok``:
-  * ``ok=True``  : nguồn đã trả lời được (kể cả trả lời "không có trong danh sách")
-  * ``ok=False`` : chưa có kết luận (hết quota, thiếu key, lỗi mạng, hoặc đang quét dở)
-``ok`` được dùng để tính ``confidence`` ở Scoring Engine, và để không bao giờ biến
-"không hỏi được" thành "sạch".
-
-Biến môi trường:
-  VT_API_KEY, VT_BACKUP_API_KEYS (phân cách bằng dấu phẩy)
-  GSB_API_KEY                 Google Safe Browsing (Lookup API v4)
-  ABUSECH_AUTH_KEY            URLhaus + MalwareBazaar (abuse.ch bắt buộc Auth-Key)
-  VT_UPLOAD_UNKNOWN_FILES     'true' để upload file chưa có trên VT (mặc định true)
-  VT_POLL_MAX_WAIT / VT_POLL_INTERVAL   giây chờ kết quả quét mới (mặc định 12 / 4)
-"""
 from __future__ import annotations
 
 import base64
@@ -68,10 +53,6 @@ def _stats_result(source: str, status: str, stats: Dict[str, Any], **extra: Any)
 # VirusTotal
 # --------------------------------------------------------------------------- #
 def _vt_poll(analysis_id: str, headers: Dict[str, str], deadline: Deadline) -> Optional[Dict[str, Any]]:
-    """Chờ analysis hoàn tất. Trả về stats, hoặc None nếu chưa xong trong thời gian cho phép.
-
-    Quan trọng: analysis còn 'queued' có stats toàn 0 - không được coi là sạch.
-    """
     max_wait = float(_env('VT_POLL_MAX_WAIT', '12'))
     interval = float(_env('VT_POLL_INTERVAL', '4'))
     waited = 0.0

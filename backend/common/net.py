@@ -1,4 +1,3 @@
-"""Tầng mạng dùng chung: ngân sách thời gian, gọi JSON API, và theo dõi redirect an toàn (chống SSRF)."""
 from __future__ import annotations
 
 import http.client
@@ -23,8 +22,7 @@ ALLOW_PRIVATE = False
 
 
 class Deadline:
-    """Ngân sách thời gian cho cả một job; mọi lời gọi mạng phải tôn trọng nó."""
-
+   
     def __init__(self, seconds: float):
         self._end = time.monotonic() + seconds
 
@@ -41,10 +39,9 @@ class Deadline:
 
 
 class BlockedTarget(Exception):
-    """Địa chỉ đích nằm trong dải mạng nội bộ/không công khai."""
 
 
-def _parse_json(raw: bytes) -> Any:
+ def _parse_json(raw: bytes) -> Any:
     try:
         return json.loads(raw.decode('utf-8', 'replace')) if raw else None
     except ValueError:
@@ -54,7 +51,6 @@ def _parse_json(raw: bytes) -> Any:
 def http_json(method: str, url: str, *, headers: Optional[Dict[str, str]] = None,
               body: Optional[bytes] = None, timeout: float = 8.0,
               deadline: Optional[Deadline] = None) -> Tuple[int, Any]:
-    """Gọi API JSON. Trả (status, json). Không ném lỗi với HTTP 4xx/5xx; lỗi mạng sẽ ném."""
     t = deadline.timeout(timeout) if deadline else timeout
     hdrs = {'User-Agent': USER_AGENT, 'Accept': 'application/json'}
     hdrs.update(headers or {})
@@ -73,7 +69,6 @@ def http_json(method: str, url: str, *, headers: Optional[Dict[str, str]] = None
 # Theo dõi redirect an toàn
 # --------------------------------------------------------------------------- #
 def resolve_public_ip(host: str) -> str:
-    """Phân giải DNS và từ chối nếu bất kỳ IP nào không phải IP công khai."""
     infos = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
     ips = []
     for info in infos:
@@ -125,8 +120,6 @@ class ChainResult:
 
 def follow_redirects(url: str, deadline: Deadline, *, max_hops: int = 6,
                      per_request_timeout: float = 4.0, max_body: int = 150_000) -> ChainResult:
-    """Đi theo chuỗi redirect thủ công. Mỗi bước: kiểm tra scheme/cổng, phân giải DNS,
-    từ chối IP nội bộ, rồi nối thẳng tới IP đã kiểm tra (chống DNS rebinding)."""
     result = ChainResult(final_url=url)
     current = url
     for _ in range(max_hops + 1):
