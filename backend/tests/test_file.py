@@ -46,7 +46,7 @@ class FilenameTests(unittest.TestCase):
     def test_double_extension_only_for_doc_like_inner(self):
         self.assertIn('DOUBLE_EXTENSION', self.codes('invoice.pdf.exe'))
         self.assertIn('DOUBLE_EXTENSION', self.codes('anh.jpg.scr'))
-        self.assertNotIn('DOUBLE_EXTENSION', self.codes('my.report.v2.exe'))   # trước đây bị báo oan
+        self.assertNotIn('DOUBLE_EXTENSION', self.codes('my.report.v2.exe'))   
         self.assertEqual(self.codes('report.pdf'), set())
 
     def test_rlo(self):
@@ -157,7 +157,7 @@ class FormatTests(unittest.TestCase):
         rnd = os.urandom(200_000)
         _, _, got = analyze(b'MZ' + rnd, 'setup.exe')
         self.assertIn('HIGH_ENTROPY', got)
-        _, _, got = analyze(b'\xff\xd8\xff' + rnd, 'photo.jpg')   # ảnh nén có entropy cao là bình thường
+        _, _, got = analyze(b'\xff\xd8\xff' + rnd, 'photo.jpg')   
         self.assertNotIn('HIGH_ENTROPY', got)
 
     def test_entropy_function(self):

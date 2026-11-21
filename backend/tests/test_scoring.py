@@ -42,7 +42,6 @@ class ScoringTests(unittest.TestCase):
         self.assertEqual(r.ceiling_applied, 20)
         self.assertEqual(compute_score([Finding('CLAMAV_INFECTED', detail='Eicar')]).score, 0)
         self.assertEqual(compute_score([Finding('FILE_VT_MALICIOUS', 6)]).score, 0)
-        # 1-4 engine không bị ép về 0
         self.assertEqual(compute_score([Finding('FILE_VT_MALICIOUS', 1)]).score, 60)
 
     def test_ceiling_applies_even_when_other_signals_small(self):

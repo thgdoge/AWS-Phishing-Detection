@@ -53,7 +53,6 @@ class StaticTests(unittest.TestCase):
         self.assertTrue({'NO_HTTPS', 'BRAND_IMPERSONATION', 'URL_KEYWORDS', 'MANY_HYPHENS'} <= c, c)
 
     def test_keywords_are_token_based(self):
-        # 'author' không được khớp 'auth'; 'update' trong path vẫn khớp
         self.assertNotIn('URL_KEYWORDS', codes('https://author-blog.example.org/post'))
         self.assertIn('URL_KEYWORDS', codes('https://shop.example.org/update/password'))
 
@@ -225,9 +224,9 @@ class RedirectFollowerTests(unittest.TestCase):
         def fake_resolve(host):
             calls['n'] += 1
             if calls['n'] == 1:
-                return '127.0.0.1'        # bước 1 cho phép để test server cục bộ
+                return '127.0.0.1'       
             return real(host)
-        # Bước 2 chuyển hướng tới /b cùng host 127.0.0.1 -> phải bị chặn khi ALLOW_PRIVATE=False
+        
         with mock.patch.object(net, 'resolve_public_ip', fake_resolve), \
                 mock.patch.object(net, 'ALLOWED_PORTS', {self.port}):
             res = follow_redirects(f'http://localhost:{self.port}/a', Deadline(10))

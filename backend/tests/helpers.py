@@ -1,4 +1,3 @@
-"""Hàm giả (fake) cho các nguồn bên ngoài, để test không cần mạng."""
 import copy
 from unittest import mock
 
@@ -22,7 +21,7 @@ def urlhaus(listed=False):
 
 
 def patch_link_sources(vt_res=None, gsb_res=None, uh_res=None, chain=None, rdap=None):
-    """Patch toàn bộ lời gọi mạng của detectors.link. Trả về list các patcher đã start."""
+    
     from common.net import ChainResult
     chain = chain if chain is not None else ChainResult(final_url='', final_status=200)
     patches = [
@@ -39,7 +38,7 @@ def patch_link_sources(vt_res=None, gsb_res=None, uh_res=None, chain=None, rdap=
 
 
 def _with_final(template, url):
-    chain = copy.deepcopy(template)   # mỗi lời gọi một bản sao: các link khác nhau không được dùng chung trạng thái
+    chain = copy.deepcopy(template)  
     if not chain.final_url:
         chain.final_url = url
         if not chain.hops:

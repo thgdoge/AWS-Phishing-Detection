@@ -13,7 +13,6 @@ from tests import helpers
 
 
 def _reject_floats(obj):
-    """Giả lập boto3 resource: DynamoDB không nhận float."""
     if isinstance(obj, float):
         raise TypeError('Float types are not supported. Use Decimal types instead.')
     if isinstance(obj, dict):
@@ -86,7 +85,7 @@ class DynamoTests(unittest.TestCase):
     def test_float_conversion(self):
         data = {'entropy': 7.25, 'nested': [{'x': 0.5}], 'n': 3, 's': 'ok'}
         with self.assertRaises(TypeError):
-            _reject_floats(data)            # đây chính là lỗi của bản cũ
+            _reject_floats(data)            
         conv = to_dynamo(data)
         _reject_floats(conv)
         self.assertEqual(conv['entropy'], Decimal('7.25'))
@@ -116,7 +115,7 @@ class FastWorkerTests(unittest.TestCase):
         store = make_store()
         self.run_worker(store, job_id='j2', type='link', payload='javascript:alert(1)', target_hash='h2')
         item = store.jobs.items['j2']
-        self.assertEqual(item['status'], 'COMPLETED')                # frontend dừng chờ
+        self.assertEqual(item['status'], 'COMPLETED')
         self.assertTrue(item['result']['risk_level'].startswith('SCAN ERROR'))
         self.assertNotIn('h2', store.cache.items)
 
