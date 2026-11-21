@@ -21,8 +21,8 @@ cache_tbl = dynamodb.Table(CACHE_TABLE)
 def lambda_handler(event, context):
     try:
         body = json.loads(event.get('body', '{}')) if isinstance(event.get('body'), str) else event.get('body', {})
-        input_type = body.get('type')  # 'link', 'email', hoặc 'file'
-        payload = body.get('payload', '') # url, raw text email, hoặc filename
+        input_type = body.get('type')  
+        payload = body.get('payload', '') 
 
         if not input_type or input_type not in ['link', 'email', 'file']:
             return response(400, {'error': 'invalid input'})
@@ -30,7 +30,7 @@ def lambda_handler(event, context):
         now = int(time.time())
         target_hash = hashlib.sha256(payload.encode('utf-8')).hexdigest()
 
-        # 1. Kiem tra Cache xem da quet trong 24h chua
+      
         cache_item = cache_tbl.get_item(Key={'target_hash': target_hash}).get('Item')
         if cache_item and cache_item.get('expires_at', 0) > now:
             return response(200, {
@@ -40,9 +40,9 @@ def lambda_handler(event, context):
                 'result': cache_item.get('result')
             })
 
-        # 2. Sinh Job ID moi va ghi vao DynamoDB
+      
         job_id = str(uuid.uuid4())
-        expires_at = now + (7 * 86400) # Tu dong xoa sau 7 ngay
+        expires_at = now + (7 * 86400)
         jobs_tbl.put_item(Item={
             'job_id': job_id,
             'status': 'PENDING',
@@ -52,7 +52,7 @@ def lambda_handler(event, context):
             'expires_at': expires_at
         })
 
-        # 3. Phan loai de day vao Queue tuong ung
+        
         if input_type in ['link', 'email']:
             fast_queue_url = sqs.get_queue_url(QueueName=FAST_QUEUE_NAME)['QueueUrl']
             sqs.send_message(
@@ -67,14 +67,14 @@ def lambda_handler(event, context):
             return response(200, {'job_id': job_id, 'status': 'PENDING'})
 
         elif input_type == 'file':
-            # Tao Presigned URL de client upload file truc tiep len S3
+            
             object_key = f"uploads/{job_id}/{payload}"
             presigned_url = s3.generate_presigned_url(
                 'put_object',
                 Params={'Bucket': RAW_BUCKET, 'Key': object_key},
-                ExpiresIn=300 # URL co hieu luc trong 5 phut
+                ExpiresIn=300 
             )
-            # Day san message vao file queue de cho xu ly
+            
             file_queue_url = sqs.get_queue_url(QueueName=FILE_QUEUE_NAME)['QueueUrl']
             sqs.send_message(
                 QueueUrl=file_queue_url,
