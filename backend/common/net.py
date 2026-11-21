@@ -15,14 +15,13 @@ from typing import Any, Dict, List, Optional, Tuple
 USER_AGENT = 'TrustCheck-PhishingScanner/2.0'
 BROWSER_UA = 'Mozilla/5.0 (compatible; TrustCheckBot/2.0)'
 
-# Chỉ cho phép quét các cổng web phổ biến, tránh bị lợi dụng để dò cổng nội bộ.
+
 ALLOWED_PORTS = {80, 443, 8080, 8443}
-# Chỉ bật trong unit test (cho phép nối tới 127.0.0.1).
 ALLOW_PRIVATE = False
 
 
 class Deadline:
-   
+    
     def __init__(self, seconds: float):
         self._end = time.monotonic() + seconds
 
@@ -39,9 +38,10 @@ class Deadline:
 
 
 class BlockedTarget(Exception):
+    """Địa chỉ đích nằm trong dải mạng nội bộ/không công khai."""
 
 
- def _parse_json(raw: bytes) -> Any:
+def _parse_json(raw: bytes) -> Any:
     try:
         return json.loads(raw.decode('utf-8', 'replace')) if raw else None
     except ValueError:
@@ -51,6 +51,7 @@ class BlockedTarget(Exception):
 def http_json(method: str, url: str, *, headers: Optional[Dict[str, str]] = None,
               body: Optional[bytes] = None, timeout: float = 8.0,
               deadline: Optional[Deadline] = None) -> Tuple[int, Any]:
+   
     t = deadline.timeout(timeout) if deadline else timeout
     hdrs = {'User-Agent': USER_AGENT, 'Accept': 'application/json'}
     hdrs.update(headers or {})
@@ -65,10 +66,8 @@ def http_json(method: str, url: str, *, headers: Optional[Dict[str, str]] = None
             err.close()
 
 
-# --------------------------------------------------------------------------- #
-# Theo dõi redirect an toàn
-# --------------------------------------------------------------------------- #
 def resolve_public_ip(host: str) -> str:
+    
     infos = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
     ips = []
     for info in infos:
@@ -80,7 +79,7 @@ def resolve_public_ip(host: str) -> str:
         ips.append((addr.version, raw))
     if not ips:
         raise BlockedTarget(f'{host}: không phân giải được')
-    ips.sort()  # ưu tiên IPv4 (Lambda thường không có IPv6 ra ngoài)
+    ips.sort()  
     return ips[0][1]
 
 
@@ -105,7 +104,7 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
 
 @dataclass
 class ChainResult:
-    hops: List[Dict[str, Any]] = field(default_factory=list)  # {'url', 'status'}
+    hops: List[Dict[str, Any]] = field(default_factory=list)  
     final_url: str = ''
     final_status: Optional[int] = None
     body: str = ''

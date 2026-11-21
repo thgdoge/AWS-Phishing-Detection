@@ -10,18 +10,18 @@ from .net import Deadline
 from .scoring import error_result
 from .store import Store
 
-SAFETY_MARGIN_SECONDS = 6.0   # chừa thời gian để ghi DynamoDB/S3 trước khi Lambda timeout
+SAFETY_MARGIN_SECONDS = 6.0   
 DEFAULT_BUDGET_SECONDS = 40.0
 
 
 @dataclass
 class Outcome:
     result: Dict[str, Any]
-    cache_key: Optional[str] = None   # None => không ghi cache
+    cache_key: Optional[str] = None   
 
 
 def _is_cacheable(result: Dict[str, Any]) -> bool:
-    # Không cache lỗi hoặc kết quả thiếu nguồn uy tín (thử lại sau có thể tốt hơn).
+   
     return result.get('risk_level') != 'SCAN ERROR' and result.get('confidence') != 'LOW'
 
 
@@ -48,7 +48,7 @@ def process_event(event: Dict[str, Any], context: Any,
 
         try:
             outcome = analyze(body, deadline, store)
-        except Exception as exc:  # noqa: BLE001 - mọi lỗi phân tích đều được ghi nhận thành SCAN ERROR
+        except Exception as exc:  
             print(f'Lỗi phân tích job {job_id}: {type(exc).__name__}: {exc}')
             traceback.print_exc()
             outcome = Outcome(error_result(f'{type(exc).__name__}: {exc}'))

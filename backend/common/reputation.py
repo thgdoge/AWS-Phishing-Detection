@@ -9,10 +9,11 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from .api_keys import get_api_key
 from .net import Deadline, http_json
 
 VT_BASE = 'https://www.virustotal.com/api/v3'
-VT_UPLOAD_LIMIT = 32 * 1024 * 1024  # giới hạn upload trực tiếp của VT API
+VT_UPLOAD_LIMIT = 32 * 1024 * 1024 
 
 
 def _env(name: str, default: str = '') -> str:
@@ -21,7 +22,7 @@ def _env(name: str, default: str = '') -> str:
 
 def vt_api_keys() -> List[str]:
     keys: List[str] = []
-    for raw in [_env('VT_API_KEY')] + _env('VT_BACKUP_API_KEYS').split(','):
+    for raw in [get_api_key('VT_API_KEY')] + get_api_key('VT_BACKUP_API_KEYS').split(','):
         k = raw.strip()
         if k and k not in keys:
             keys.append(k)
@@ -49,10 +50,12 @@ def _stats_result(source: str, status: str, stats: Dict[str, Any], **extra: Any)
     return out
 
 
-# --------------------------------------------------------------------------- #
-# VirusTotal
-# --------------------------------------------------------------------------- #
+
 def _vt_poll(analysis_id: str, headers: Dict[str, str], deadline: Deadline) -> Optional[Dict[str, Any]]:
+    """Chờ analysis hoàn tất. Trả về stats, hoặc None nếu chưa xong trong thời gian cho phép.
+
+    Quan trọng: analysis còn 'queued' có stats toàn 0 - không được coi là sạch.
+    """
     max_wait = float(_env('VT_POLL_MAX_WAIT', '12'))
     interval = float(_env('VT_POLL_INTERVAL', '4'))
     waited = 0.0
@@ -175,11 +178,9 @@ def _vt_upload(local_path, filename, headers, label, permalink, deadline) -> Dic
     return _stats_result('virustotal', 'UPLOADED_AND_SCANNED', stats, api_key_used=label, permalink=permalink)
 
 
-# --------------------------------------------------------------------------- #
-# Google Safe Browsing (Lookup API v4)
-# --------------------------------------------------------------------------- #
+
 def gsb_check(url: str, deadline: Deadline) -> Dict[str, Any]:
-    key = _env('GSB_API_KEY')
+    key = get_api_key('GSB_API_KEY')
     if not key:
         return _unavailable('safe_browsing', 'NO_API_KEY')
     payload = {
@@ -208,11 +209,9 @@ def gsb_check(url: str, deadline: Deadline) -> Dict[str, Any]:
             'malicious': 1 if matches else 0, 'suspicious': 0, 'threat_types': types}
 
 
-# --------------------------------------------------------------------------- #
-# abuse.ch: URLhaus & MalwareBazaar (cần Auth-Key)
-# --------------------------------------------------------------------------- #
+
 def urlhaus_check(url: str, deadline: Deadline) -> Dict[str, Any]:
-    key = _env('ABUSECH_AUTH_KEY')
+    key = get_api_key('ABUSECH_AUTH_KEY')
     if not key:
         return _unavailable('urlhaus', 'NO_API_KEY')
     try:
@@ -236,7 +235,7 @@ def urlhaus_check(url: str, deadline: Deadline) -> Dict[str, Any]:
 
 
 def malwarebazaar_check(sha256: str, deadline: Deadline) -> Dict[str, Any]:
-    key = _env('ABUSECH_AUTH_KEY')
+    key = get_api_key('ABUSECH_AUTH_KEY')
     if not key:
         return _unavailable('malwarebazaar', 'NO_API_KEY')
     try:
@@ -259,9 +258,7 @@ def malwarebazaar_check(sha256: str, deadline: Deadline) -> Dict[str, Any]:
     return _unavailable('malwarebazaar', f'QUERY_{qs}')
 
 
-# --------------------------------------------------------------------------- #
-# Tuổi tên miền qua RDAP (thay cho WHOIS cổng 43: trả JSON, không cần thư viện ngoài)
-# --------------------------------------------------------------------------- #
+
 def rdap_domain_age(registrable_domain: str, deadline: Deadline) -> Dict[str, Any]:
     try:
         status, obj = http_json('GET', f'https://rdap.org/domain/{urllib.parse.quote(registrable_domain)}',

@@ -11,19 +11,20 @@ SUSPICIOUS_MIN = 50
 
 # Mức trừ tối đa theo từng nhóm tín hiệu.
 CATEGORY_CAPS: Dict[str, int] = {
-    'reputation': 100,   # VirusTotal, Safe Browsing, URLhaus, MalwareBazaar, ClamAV
-    'url': 55,           # cấu trúc URL / tên miền
-    'domain': 40,        # tuổi domain, redirect, chứng chỉ, trang đích
-    'sender': 45,        # SPF/DKIM/DMARC, giả mạo người gửi
-    'content': 60,       # nội dung email (NLP luật)
-    'links': 70,         # điểm của các link nằm trong email
-    'attachment': 90,    # điểm của tệp đính kèm trong email
-    'file': 80,          # phân tích tĩnh tệp
+    'reputation': 100,  
+    'url': 55,          
+    'domain': 40,       
+    'sender': 45,       
+    'content': 60,       
+    'links': 70,        
+    'attachment': 90,
+    'file': 80,
 }
 
 
 @dataclass(frozen=True)
 class Finding:
+    
     code: str
     value: float = 1
     detail: str = ''
@@ -33,12 +34,12 @@ class Finding:
 @dataclass(frozen=True)
 class Rule:
     category: str
-    reason: str                              # str.format(value=..., detail=...)
-    penalty: int = 0                         # điểm trừ cố định
-    per_unit: float = 0                      # điểm trừ cho mỗi đơn vị ``value``
-    max_penalty: Optional[int] = None        # trần cho per_unit
-    tiers: Tuple[Tuple[float, int], ...] = ()  # ((ngưỡng, điểm trừ), ...)
-    tier_mode: str = 'ge'                    # 'ge': value >= ngưỡng (giảm dần); 'le': value <= ngưỡng (tăng dần)
+    reason: str                              
+    penalty: int = 0
+    per_unit: float = 0                     
+    max_penalty: Optional[int] = None        
+    tiers: Tuple[Tuple[float, int], ...] = ()
+    tier_mode: str = 'ge'                    
     ceiling: Optional[int] = None
     ceiling_tiers: Tuple[Tuple[float, int], ...] = ()
 
@@ -50,11 +51,9 @@ def _tier(tiers, value, mode):
     return 0
 
 
-# --------------------------------------------------------------------------- #
-# BẢNG LUẬT CHẤM ĐIỂM
-# --------------------------------------------------------------------------- #
+
 RULES: Dict[str, Rule] = {
-    # ---- Uy tín từ nguồn bên ngoài -------------------------------------------------
+   
     'VT_MALICIOUS': Rule('reputation', '{value:.0f} công cụ bảo mật (VirusTotal) báo link độc hại',
                          tiers=((5, 85), (2, 60), (1, 35))),
     'VT_SUSPICIOUS': Rule('reputation', '{value:.0f} công cụ bảo mật (VirusTotal) báo đáng ngờ',
@@ -72,7 +71,7 @@ RULES: Dict[str, Rule] = {
                               penalty=100, ceiling=0),
     'CLAMAV_INFECTED': Rule('reputation', 'ClamAV phát hiện mã độc ({detail})', penalty=100, ceiling=0),
 
-    # ---- Cấu trúc URL ------------------------------------------------------------
+   
     'NO_HTTPS': Rule('url', 'Không dùng kết nối bảo mật (HTTPS)', penalty=10),
     'IP_HOST': Rule('url', 'Dùng địa chỉ IP thay cho tên miền', penalty=30),
     'SUSPICIOUS_TLD': Rule('url', 'Đuôi tên miền hay bị lạm dụng ({detail})', penalty=15),
@@ -86,7 +85,7 @@ RULES: Dict[str, Rule] = {
     'NONSTANDARD_PORT': Rule('url', 'Link dùng cổng kết nối bất thường (:{detail})', penalty=8),
     'FREE_HOSTING': Rule('url', 'Trang nằm trên dịch vụ lưu trữ miễn phí ({detail})', penalty=8),
 
-    # ---- Tên miền, chuyển hướng, trang đích ----------------------------------------
+   
     'DOMAIN_NEW': Rule('domain', 'Tên miền mới đăng ký cách đây {value:.0f} ngày',
                        tiers=((7, 35), (30, 25), (90, 10)), tier_mode='le'),
     'REDIRECT_CHAIN': Rule('domain', 'Link chuyển hướng qua {value:.0f} bước',
@@ -96,7 +95,7 @@ RULES: Dict[str, Rule] = {
     'LANDING_PASSWORD_FORM': Rule('domain', 'Trang đích có ô nhập mật khẩu', penalty=15),
     'FORM_ACTION_EXTERNAL': Rule('domain', 'Biểu mẫu trên trang gửi dữ liệu sang tên miền khác ({detail})', penalty=15),
 
-    # ---- Người gửi email -----------------------------------------------------------
+   
     'SPF_FAIL': Rule('sender', 'Email không vượt qua kiểm tra SPF', penalty=15),
     'SPF_SOFTFAIL': Rule('sender', 'Email bị đánh dấu SPF softfail', penalty=8),
     'DKIM_FAIL': Rule('sender', 'Email không vượt qua kiểm tra chữ ký DKIM', penalty=15),
@@ -106,19 +105,19 @@ RULES: Dict[str, Rule] = {
     'DISPLAY_NAME_SPOOF': Rule('sender', 'Tên hiển thị giả danh nơi khác ({detail})', penalty=20),
     'SENDER_BRAND_MISMATCH': Rule('sender', 'Tên miền người gửi giả mạo thương hiệu "{detail}"', penalty=25),
 
-    # ---- Nội dung email (luật NLP) --------------------------------------------------
+    
     'URGENT_PHRASES': Rule('content', 'Có cụm từ gây áp lực, hối thúc: {detail}', per_unit=10, max_penalty=30),
     'CREDENTIAL_REQUEST': Rule('content', 'Yêu cầu cung cấp thông tin nhạy cảm (mật khẩu, OTP, thẻ)', penalty=25),
     'LURE_PHRASES': Rule('content', 'Có cụm từ dụ dỗ trúng thưởng/hoàn tiền: {detail}', penalty=15),
     'LINK_TEXT_MISMATCH': Rule('content', 'Văn bản link hiển thị tên miền khác với địa chỉ thật ({detail})', penalty=25),
 
-    # ---- Điểm của thành phần con trong email ----------------------------------------
+  
     'EMAIL_LINK_RISK': Rule('links', 'Link trong email có độ tin cậy thấp ({detail})',
                             per_unit=0.7, max_penalty=70),
     'EMAIL_ATTACHMENT_RISK': Rule('attachment', 'Tệp đính kèm có độ tin cậy thấp ({detail})',
                                   per_unit=0.9, max_penalty=90),
 
-    # ---- Phân tích tĩnh tệp ---------------------------------------------------------
+   
     'HIGH_RISK_EXT': Rule('file', 'Đuôi tệp thực thi/script rủi ro cao ({detail})', penalty=25),
     'DOUBLE_EXTENSION': Rule('file', 'Tên tệp có đuôi kép giả mạo ({detail})', penalty=45),
     'RLO_FILENAME': Rule('file', 'Tên tệp chứa ký tự đảo chiều để che đuôi thật', penalty=45),
@@ -186,7 +185,7 @@ def _evaluate(finding: Finding) -> Optional[Signal]:
     ceiling = rule.ceiling
     if rule.ceiling_tiers:
         tiered = _tier(rule.ceiling_tiers, value, rule.tier_mode)
-        # _tier trả 0 khi không khớp nên cần phân biệt "không khớp" với "trần = 0"
+        
         matched = any((value >= t) if rule.tier_mode == 'ge' else (value <= t)
                       for t, _ in rule.ceiling_tiers)
         if matched:
@@ -199,9 +198,8 @@ def _evaluate(finding: Finding) -> Optional[Signal]:
 
 def compute_score(findings: List[Finding], *, reputation_ok: int = 0,
                   reputation_needed: bool = True) -> ScoreResult:
-    """Tổng hợp các finding thành điểm tin cậy 0-100.
-    """
-    # 1. Mỗi mã chỉ tính một lần (giữ bản trừ nặng nhất) để không cộng trùng.
+    
+    
     best: Dict[str, Signal] = {}
     for f in findings:
         sig = _evaluate(f)
@@ -212,14 +210,14 @@ def compute_score(findings: List[Finding], *, reputation_ok: int = 0,
             best[sig.code] = sig
     signals = sorted(best.values(), key=lambda s: (-s.penalty, s.code))
 
-    # 2. Cộng theo nhóm, áp trần từng nhóm.
+   
     totals: Dict[str, int] = {}
     for s in signals:
         totals[s.category] = totals.get(s.category, 0) + s.penalty
     deducted = sum(min(v, CATEGORY_CAPS.get(cat, 100)) for cat, v in totals.items())
     score = 100 - deducted
 
-    # 3. Mức trần của các tín hiệu nghiêm trọng.
+   
     ceilings = [s.ceiling for s in signals if s.ceiling is not None]
     ceiling_applied = min(ceilings) if ceilings else None
     if ceiling_applied is not None:
@@ -244,7 +242,7 @@ def compute_score(findings: List[Finding], *, reputation_ok: int = 0,
 
 
 def build_result(score: ScoreResult, details: Dict[str, Any], *, scanned_at: Optional[int] = None) -> Dict[str, Any]:
-    """Đóng gói kết quả theo đúng format mà status_lambda và frontend đang đọc."""
+    
     return {
         'trust_score': score.score,
         'risk_level': score.risk_level,
@@ -258,7 +256,7 @@ def build_result(score: ScoreResult, details: Dict[str, Any], *, scanned_at: Opt
 
 
 def error_result(message: str, *, scanned_at: Optional[int] = None) -> Dict[str, Any]:
-    """Kết quả khi quét lỗi. Frontend nhận ra qua risk_level bắt đầu bằng 'SCAN ERROR'."""
+    
     return {
         'trust_score': 0,
         'risk_level': 'SCAN ERROR',

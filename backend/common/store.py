@@ -10,10 +10,12 @@ CACHE_TTL_SECONDS = 24 * 3600
 
 
 def to_dynamo(obj: Any) -> Any:
+    """DynamoDB (boto3 resource) không nhận float. Chuyển float -> Decimal."""
     return json.loads(json.dumps(obj, default=str), parse_float=Decimal)
 
 
 def from_dynamo(obj: Any) -> Any:
+    """Decimal -> int/float để json.dumps / so sánh bình thường."""
     if isinstance(obj, Decimal):
         return int(obj) if obj == obj.to_integral_value() else float(obj)
     if isinstance(obj, dict):
@@ -28,7 +30,7 @@ class Store:
         self._jobs, self._cache, self._s3 = jobs_tbl, cache_tbl, s3
         self.reports_bucket = reports_bucket if reports_bucket is not None else os.environ.get('REPORTS_BUCKET', '')
 
-    # --- lazy clients -------------------------------------------------------
+    
     @property
     def jobs(self):
         if self._jobs is None:
@@ -50,7 +52,7 @@ class Store:
             self._s3 = boto3.client('s3')
         return self._s3
 
-    # --- jobs -----------------------------------------------------------------
+   
     def job_status(self, job_id: str) -> Optional[str]:
         item = self.jobs.get_item(Key={'job_id': job_id}).get('Item')
         return item.get('status') if item else None
@@ -67,7 +69,7 @@ class Store:
             ExpressionAttributeValues={':s': 'COMPLETED', ':ts': int(result['trust_score']),
                                        ':r': to_dynamo(result)})
 
-    # --- cache ----------------------------------------------------------------
+    
     def cache_get(self, target_hash: str) -> Optional[Dict[str, Any]]:
         item = self.cache.get_item(Key={'target_hash': target_hash}).get('Item')
         if item and int(item.get('expires_at', 0)) > time.time():
@@ -79,7 +81,7 @@ class Store:
             'target_hash': target_hash, 'job_id': job_id, 'result': to_dynamo(result),
             'expires_at': int(result.get('scanned_at', time.time())) + CACHE_TTL_SECONDS})
 
-    # --- audit log --------------------------------------------------------------
+    
     def save_log(self, job_id: str, result: Dict[str, Any]) -> None:
         if not self.reports_bucket:
             return
@@ -87,5 +89,5 @@ class Store:
             self.s3.put_object(Bucket=self.reports_bucket, Key=f'logs/{job_id}.json',
                                Body=json.dumps(result, indent=2, default=str).encode(),
                                ContentType='application/json')
-        except Exception as exc:  # log không được làm hỏng kết quả
+        except Exception as exc:  
             print(f'Cảnh báo: không lưu được log S3 cho job {job_id}: {exc}')
