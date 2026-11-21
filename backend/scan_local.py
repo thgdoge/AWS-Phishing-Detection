@@ -5,12 +5,12 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-if hasattr(sys.stdout, 'reconfigure'):          # Windows: in được tiếng Việt
+if hasattr(sys.stdout, 'reconfigure'):         
     sys.stdout.reconfigure(encoding='utf-8')
     sys.stderr.reconfigure(encoding='utf-8')
 
-from common.net import Deadline                      # noqa: E402
-from common.scoring import build_result, compute_score  # noqa: E402
+from common.net import Deadline                     
+from common.scoring import build_result, compute_score 
 
 
 def main():
@@ -35,7 +35,7 @@ def main():
         from detectors.file import analyze_file
         if not os.path.isfile(args.target):
             sys.exit(f'Không tìm thấy tệp: {args.target}')
-        if args.offline:      # bỏ qua VirusTotal/MalwareBazaar bằng cách không đọc key
+        if args.offline:     
             for k in ('VT_API_KEY', 'VT_BACKUP_API_KEYS', 'ABUSECH_AUTH_KEY'):
                 os.environ.pop(k, None)
         analysis = analyze_file(args.target, os.path.basename(args.target), deadline, allow_upload=False)

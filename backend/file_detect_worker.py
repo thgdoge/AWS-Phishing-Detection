@@ -12,6 +12,7 @@ S3_WAIT_SECONDS = float(os.environ.get('S3_WAIT_SECONDS', '30'))
 
 
 def wait_for_object(s3, bucket, key, deadline: Deadline):
+    
     waited = 0.0
     while True:
         try:
@@ -48,7 +49,7 @@ def analyze(body, deadline, store):
 
     score = compute_score(analysis.findings, reputation_ok=analysis.reputation_ok,
                           reputation_needed=analysis.reputation_needed)
-    # Cache theo SHA-256 NỘI DUNG (không phải tên file).
+    
     return Outcome(build_result(score, analysis.details), cache_key=analysis.details['sha256'])
 
 

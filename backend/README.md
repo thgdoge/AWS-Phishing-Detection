@@ -19,6 +19,7 @@ backend/
 │   ├── pipeline.py            # đọc SQS, idempotency, xử lý lỗi, lưu kết quả
 │   ├── store.py               # DynamoDB / S3 (có chuyển float -> Decimal)
 │   ├── net.py                 # ngân sách thời gian, gọi API, theo dõi redirect an toàn (chống SSRF)
+│   ├── api_keys.py            # lấy API key: biến môi trường trước, rồi SSM Parameter Store
 │   ├── reputation.py          # VirusTotal, Safe Browsing, URLhaus, MalwareBazaar, RDAP
 │   └── textnorm.py            # bỏ dấu tiếng Việt, so khớp theo ranh giới từ
 ├── detectors/
@@ -27,7 +28,7 @@ backend/
 │   ├── file.py                # File: hash, magic bytes, YARA-lite, Office/PDF/ZIP/HTML, entropy, ClamAV
 │   ├── domains.py             # registrable domain, danh sách brand, allowlist, TLD rủi ro
 │   └── base.py                # kiểu Analysis mà detector trả về
-├── tests/                     # 101 unit test, không cần mạng/AWS
+├── tests/                     # 113 unit test, không cần mạng/AWS
 ├── scan_local.py              # quét thử link/email/file ngay trên máy
 ├── samples/                   # email mẫu để thử
 └── build_zip.py               # đóng gói dist/detect-workers.zip
@@ -165,6 +166,7 @@ S3 `PutObject` trên `REPORTS_BUCKET`.
 | Biến | Dùng cho | Ghi chú |
 |---|---|---|
 | `JOBS_TABLE`, `CACHE_TABLE`, `REPORTS_BUCKET` | cả hai | như cũ |
+| `SSM_PREFIX` | cả hai | (tùy chọn) ví dụ `/phishing`: đọc key từ SSM Parameter Store, xem mục bên dưới |
 | `VT_API_KEY`, `VT_BACKUP_API_KEYS` | VirusTotal | free: 4 request/phút, 500/ngày |
 | `GSB_API_KEY` | Google Safe Browsing (Lookup v4) | free ~10.000 truy vấn/ngày |
 | `ABUSECH_AUTH_KEY` | URLhaus + MalwareBazaar | **bắt buộc** từ khi abuse.ch yêu cầu Auth-Key (đăng ký miễn phí ở auth.abuse.ch) |
@@ -174,6 +176,28 @@ S3 `PutObject` trên `REPORTS_BUCKET`.
 
 Thiếu key nào thì nguồn đó được ghi `NO_API_KEY`, **không** tính là "sạch" và làm `confidence` giảm.
 VT free rất chặt: nên đặt *reserved concurrency* 1–2 cho worker và dùng `VT_BACKUP_API_KEYS`.
+
+## Cất API key ở SSM Parameter Store (tùy chọn)
+
+Code lấy key theo thứ tự: **biến môi trường -> SSM -> bỏ qua nguồn đó** (`common/api_keys.py`).
+Muốn dùng SSM, đặt biến `SSM_PREFIX=/phishing` cho hai worker và xóa các biến chứa key cũ
+(biến môi trường luôn được ưu tiên). Tạo parameter kiểu **SecureString**:
+
+| Parameter | Worker cần |
+|---|---|
+| `/phishing/VT_API_KEY` | Fast + File |
+| `/phishing/VT_BACKUP_API_KEYS` (tùy chọn, ngăn cách bằng dấu phẩy) | Fast + File |
+| `/phishing/GSB_API_KEY` | Fast |
+| `/phishing/ABUSECH_AUTH_KEY` | Fast + File |
+
+Role IAM của worker cần quyền:
+```json
+{"Effect": "Allow", "Action": "ssm:GetParameter",
+ "Resource": "arn:aws:ssm:<region>:<account-id>:parameter/phishing/*"}
+```
+(Nếu dùng khóa KMS tự tạo thì thêm `kms:Decrypt`.) Key được nhớ suốt vòng đời container nên chỉ đọc SSM một lần
+mỗi lần khởi động lạnh; đổi key trên SSM có hiệu lực khi container mới được tạo. Lỗi SSM không làm hỏng job:
+nguồn đó bị bỏ qua, `confidence` giảm và log ghi `[api_keys] không đọc được <tên>: <mã lỗi>`.
 
 ## Chạy thử trên máy (không cần AWS)
 
@@ -189,7 +213,7 @@ Bỏ `--offline` để tra cứu thật (đặt `VT_API_KEY`, `GSB_API_KEY`, `AB
 
 ```bash
 cd backend
-python -m unittest discover -s tests -t .      # 101 test, ~1 giây, không cần mạng/AWS
+python -m unittest discover -s tests -t .      # 113 test, ~1 giây, không cần mạng/AWS
 python build_zip.py                            # -> dist/detect-workers.zip
 ```
 
