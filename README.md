@@ -2,6 +2,16 @@
 
 Hệ thống phát hiện và cảnh báo tấn công giả mạo (Phishing Detection) đa kênh dành cho **Đường link (URL)**, **Nội dung Email** và **Tệp đính kèm (File)**, xây dựng hoàn toàn trên kiến trúc **100% Serverless** hướng sự kiện (Event-driven) trên nền tảng điện toán đám mây Amazon Web Services (AWS) với chi phí vận hành xấp xỉ **$0** (nằm trọn trong gói AWS Free Tier).
 
+Kết quả là một **điểm tin cậy từ 0 đến 100** kèm lý do giải thích bằng tiếng Việt.
+
+**Tài liệu liên quan**
+
+| Tài liệu | Nội dung |
+| :--- | :--- |
+| [`HUONG_DAN_SU_DUNG.md`](HUONG_DAN_SU_DUNG.md) | Hướng dẫn sử dụng từng bước: web, API, chạy thử, cài API key / SSM, cập nhật Lambda, xử lý sự cố |
+| [`backend/README.md`](backend/README.md) | Chi tiết Detect Worker & Scoring Engine, bảng luật chấm điểm đầy đủ, cấu hình Lambda |
+| [`frontend/README.md`](frontend/README.md) | Giao diện web |
+
 ---
 
 ## 1. Kiến trúc Tổng quan (Architecture & Workflow)
@@ -12,7 +22,7 @@ Hệ thống hoạt động theo mô hình xử lý bất đồng bộ (Asynchro
 [User Input: Link / Email / File]
        │
        ▼
-[Frontend: index.html]
+[Frontend: frontend/index.html]
   • Link/Email ──► POST /scan (API Gateway HTTP API)
   • File       ──► Nhận Presigned URL ──► Upload trực tiếp lên S3
        │
@@ -29,11 +39,11 @@ Hệ thống hoạt động theo mô hình xử lý bất đồng bộ (Asynchro
        │                              │
        ▼                              ▼
  [FastDetectWorker]          [FileDetectWorker]
-  • Phân tích Link:           • Chờ S3 upload hoàn tất
-    WHOIS, SSL, Redirect,      • Hash SHA-256 & MD5
-    Suspicious Keywords        • Magic Bytes vs Extension
-  • Phân tích Email:          • Static YARA Signatures
-    SPF/DKIM/DMARC, NLP        • Shannon Entropy & ClamAV
+  • Phân tích Link            • Chờ S3 upload hoàn tất
+  • Phân tích Email           • Hash SHA-256 & MD5
+                              • Magic Bytes, luật kiểu YARA
+                              • Macro / PDF / file nén, Entropy
+                              • VirusTotal, MalwareBazaar, ClamAV (*)
        │                              │
        └──────────────┬───────────────┘
                       ▼
@@ -44,13 +54,24 @@ Hệ thống hoạt động theo mô hình xử lý bất đồng bộ (Asynchro
             [DB & Storage]
               • Cập nhật trạng thái COMPLETED vào DynamoDB
               • Ghi đệm vào PhishingScanCache (TTL 24 giờ)
-              • Lưu trữ Audit Log JSON lên S3
+              • Lưu trữ Audit Log JSON lên S3 (nếu đặt REPORTS_BUCKET)
                       │
                       ▼
-            [Reports & Delivery]
-              • Frontend Poll kết quả thời gian thực
-              • Xuất báo cáo PDF bảo mật qua S3 Presigned URL
+            [Frontend + StatusLambda]
+              • Frontend hỏi kết quả mỗi 2 giây cho tới khi COMPLETED
 ```
+
+(*) ClamAV chỉ chạy khi môi trường có sẵn chương trình `clamscan`. Lambda thông thường không có, nên mặc định bị bỏ qua.
+
+> **Xuất báo cáo PDF** chưa có trong mã hiện tại (chỉ còn trong thư mục `BackUp/`).
+
+### Detect Worker kiểm tra những gì
+
+| Loại | Các kiểm tra chính |
+| :--- | :--- |
+| **Link** | Tuổi tên miền (qua RDAP), chuỗi chuyển hướng, chứng chỉ SSL, trang đích có ô mật khẩu, từ khóa nhạy cảm, giả mạo thương hiệu, cấu trúc URL bất thường; tra cứu VirusTotal, Google Safe Browsing, URLhaus |
+| **Email** | SPF / DKIM / DMARC đọc từ header, Reply-To / tên hiển thị giả mạo, cụm từ hối thúc và đòi thông tin nhạy cảm (tiếng Việt có dấu lẫn không dấu), chữ link khác địa chỉ thật; chấm điểm riêng từng link và tệp đính kèm |
+| **File** | Hash SHA-256 và MD5, đuôi tệp giả mạo, magic bytes, luật kiểu YARA, macro và template từ xa trong Office, mã chủ động trong PDF, tệp thực thi trong file nén, biểu mẫu mật khẩu trong HTML, Shannon Entropy; tra cứu VirusTotal, MalwareBazaar |
 
 ---
 
@@ -62,7 +83,10 @@ Hệ thống hoạt động theo mô hình xử lý bất đồng bộ (Asynchro
 | **Xử lý tác vụ (Compute)** | AWS Lambda (Python 3.12, arm64) | Chạy trên kiến trúc chip Graviton2 (`arm64`) giúp tiết kiệm ~20% chi phí. Tận dụng 1 triệu request và 400.000 GB-giây miễn phí/tháng. |
 | **Hàng đợi đệm (Queues)** | Amazon SQS (Standard Queue) | Tách riêng luồng xử lý nhanh (`fast-queue`) và luồng quét file nặng (`file-queue`). Gắn Dead-Letter Queue (`dlq`) ngăn lặp vô tận. |
 | **Cơ sở dữ liệu (Database)** | Amazon DynamoDB | Chọn chế độ Provisioned (5 RCU / 5 WCU) để nằm trọn trong hạn mức miễn phí vĩnh viễn (25 RCU/WCU). Bật TTL tự dọn dữ liệu cũ. |
-| **Lưu trữ đối tượng (Storage)** | Amazon Simple Storage Service (S3) | Dùng S3 Presigned URL để upload/download file trực tiếp từ trình duyệt. Bật Lifecycle Rules xóa file rác sau 1–7 ngày. |
+| **Lưu trữ đối tượng (Storage)** | Amazon Simple Storage Service (S3) | Dùng S3 Presigned URL để upload file trực tiếp từ trình duyệt. Bật Lifecycle Rules xóa file rác sau 1–7 ngày. |
+| **Cất API key (tùy chọn)** | AWS Systems Manager Parameter Store | Lưu key dạng `SecureString` (mã hóa) ở một chỗ, hai worker cùng đọc. Loại Standard không tính phí lưu. Có thể thay bằng biến môi trường Lambda. |
+
+**Nguồn bên ngoài AWS** (gọi qua internet, dùng gói miễn phí): VirusTotal, Google Safe Browsing, URLhaus và MalwareBazaar (abuse.ch), RDAP. Hạn mức miễn phí của VirusTotal khá thấp (4 lượt/phút, 500 lượt/ngày).
 
 ---
 
@@ -71,17 +95,25 @@ Hệ thống hoạt động theo mô hình xử lý bất đồng bộ (Asynchro
 ```text
 phishing-detection-aws/
 ├── frontend/
-│   └── index.html                # Giao diện web SPA (hỗ trợ Link, Email, File, PDF)
+│   ├── index.html                # Giao diện web SPA (Link, Email, File)
+│   ├── css/
+│   └── js/                       # config.js chứa địa chỉ API (API_BASE)
 ├── backend/
 │   ├── ingest_lambda.py          # Lambda tiếp nhận request, check cache, điều phối SQS
-│   ├── status_lambda.py          # Lambda tra cứu kết quả quét & xuất file PDF lên S3
+│   ├── status_lambda.py          # Lambda tra cứu trạng thái & kết quả
 │   ├── fast_detect_worker.py     # Handler Detect Worker cho Link & Email
 │   ├── file_detect_worker.py     # Handler Detect Worker cho File
-│   ├── common/                   # Scoring Engine (scoring.py), pipeline, lưu trữ, mạng, nguồn uy tín
+│   ├── common/                   # Scoring Engine (scoring.py), pipeline, lưu trữ, mạng, nguồn uy tín, api_keys
 │   ├── detectors/                # Detector Link / Email / File
-│   ├── tests/                    # 101 unit test (python -m unittest discover -s tests -t .)
+│   ├── tests/                    # 113 unit test, không cần mạng hay AWS
+│   ├── samples/                  # Email mẫu để chạy thử
+│   ├── scan_local.py             # Quét thử link/email/file ngay trên máy
+│   ├── build_zip.py              # Đóng gói dist/detect-workers.zip cho Lambda
 │   └── README.md                 # Tài liệu chi tiết Detect Worker & Scoring Engine
-└── README.md                     # Tài liệu hướng dẫn hệ thống
+├── BackUp/                       # Bản lưu cũ, KHÔNG phải mã đang chạy
+├── HUONG_DAN_SU_DUNG.md          # Hướng dẫn sử dụng chi tiết
+├── .gitignore
+└── README.md                     # Tài liệu tổng quan hệ thống
 ```
 
 ---
@@ -121,6 +153,7 @@ phishing-detection-aws/
     "upload_url": "https://phishing-raw-uploads-....s3.amazonaws.com/..." // (chỉ có khi type=file)
   }
   ```
+  Với file, `upload_url` chỉ có hiệu lực **5 phút**: phải tải file lên địa chỉ đó (`PUT`) ngay sau khi nhận được.
 
 ### 4.2. Tra cứu trạng thái & Kết quả (GET `/scan/{job_id}`)
 * **Response (Đang xử lý):**
@@ -161,8 +194,11 @@ phishing-detection-aws/
     }
   }
   ```
-  `risk_level` nhận `SAFE`, `SUSPICIOUS`, `DANGEROUS`, hoặc `SCAN ERROR` khi quét lỗi (frontend hiển thị "Chưa kiểm tra được").
-  `confidence` (`HIGH`/`MEDIUM`/`LOW`) cho biết kết luận dựa trên bao nhiêu nguồn uy tín bên ngoài đã trả lời được.
+  * `status`: `PENDING` → `PROCESSING` → `COMPLETED`.
+  * `risk_level` nhận `SAFE`, `SUSPICIOUS`, `DANGEROUS`, hoặc `SCAN ERROR` khi quét lỗi (frontend hiển thị "Chưa kiểm tra được").
+  * `confidence` (`HIGH` / `MEDIUM` / `LOW`) cho biết kết luận dựa trên bao nhiêu nguồn uy tín bên ngoài đã trả lời được.
+    `SAFE` kèm `LOW` chỉ có nghĩa là chưa thấy dấu hiệu xấu, **không** phải đã được xác nhận an toàn.
+  * **Lưu ý:** `StatusLambda` hiện trả các giá trị số dưới dạng chuỗi (ví dụ `"10"`). Hãy ép kiểu (`Number()`, `[int]`...) khi dùng.
 
 ---
 
@@ -180,6 +216,9 @@ detector chỉ phát hiện, còn **bảng luật `RULES`** quyết định đi�
   nội dung, tệp...) có mức trừ tối đa riêng; tín hiệu nghiêm trọng đặt *trần điểm* (ClamAV/MalwareBazaar phát hiện
   => 0 điểm, Google Safe Browsing/URLhaus báo => tối đa 20 điểm, từ 5 engine VirusTotal báo mã độc cho file => 0 điểm).
 
+* **Không biến "không hỏi được" thành "sạch":** nguồn nào thiếu key, hết hạn mức hoặc lỗi mạng sẽ bị bỏ qua và làm
+  `confidence` giảm, chứ không được tính là an toàn. Kết quả `LOW` hoặc `SCAN ERROR` không được ghi vào bộ đệm.
+
 * **Các nhóm kiểm tra chính** (số điểm cụ thể xem bảng trong `backend/README.md`):
   * **Link:** HTTPS, IP thay domain (kể cả IP dạng số/hex), TLD rủi ro, từ khóa nhạy cảm (so khớp theo token),
     giả mạo thương hiệu (kể cả `paypa1`, `rnicrosoft`), ký tự `@`, Punycode, link rút gọn, tuổi tên miền (RDAP),
@@ -194,32 +233,80 @@ detector chỉ phát hiện, còn **bảng luật `RULES`** quyết định đi�
 
 ## 6. Hướng dẫn Khởi chạy Nhanh (Quick Start)
 
+Hướng dẫn đầy đủ từng bước nằm trong [`HUONG_DAN_SU_DUNG.md`](HUONG_DAN_SU_DUNG.md). Dưới đây là phần tóm tắt.
+
 ### 6.1. Chạy giao diện Web cục bộ (Frontend)
 1. Đảm bảo máy tính đã cài đặt Python 3.
-2. Mở terminal tại thư mục chứa file `index.html` và chạy:
+2. Mở terminal tại thư mục `frontend` (chứa file `index.html`) và chạy:
    ```bash
    python -m http.server 8000
    ```
 3. Truy cập vào trình duyệt: `http://localhost:8000/index.html`.
 
-### 6.2. Kiểm thử bằng lệnh cURL / PowerShell
-* **Gửi quét một đường link:**
-  ```powershell
-  $job = Invoke-RestMethod -Uri "https://kp3je8ijff.execute-api.ap-southeast-1.amazonaws.com/scan" -Method Post -ContentType "application/json" -Body '{"type": "link", "payload": "http://paypal-security-update-fake.com"}'
-  $job
-  ```
-* **Kiểm tra kết quả sau 3 giây:**
-  ```powershell
-  Invoke-RestMethod -Uri "https://kp3je8ijff.execute-api.ap-southeast-1.amazonaws.com/scan/$($job.job_id)"
-  ```
-* **Lấy link tải báo cáo PDF:**
-  ```powershell
-  $pdf = Invoke-RestMethod -Uri "https://kp3je8ijff.execute-api.ap-southeast-1.amazonaws.com/scan/$($job.job_id)?export=pdf"
-  Start-Process $pdf.download_url
-  ```
+Địa chỉ API mà giao diện gọi nằm trong `frontend/js/config.js` (`API_BASE`).
+
+### 6.2. Kiểm thử bằng PowerShell
+```powershell
+$base = "https://kp3je8ijff.execute-api.ap-southeast-1.amazonaws.com"
+$job  = Invoke-RestMethod -Uri "$base/scan" -Method Post -ContentType "application/json" `
+        -Body '{"type": "link", "payload": "http://paypal-security-update-fake.com"}'
+$job
+Start-Sleep 20
+Invoke-RestMethod -Uri "$base/scan/$($job.job_id)"
+```
+Nếu `status` còn `PENDING` hoặc `PROCESSING`, đợi thêm vài giây rồi chạy lại dòng cuối.
+
+### 6.3. Chạy thử phần backend trên máy (không cần AWS)
+Cần Python 3.10 trở lên. Trong thư mục `backend`:
+```bash
+python -m unittest discover -s tests -t .
+python scan_local.py link  "http://paypal-security-update-fake.com/login" --offline
+python scan_local.py email samples/email_lua_dao.txt --offline
+python scan_local.py file  duong/dan/tep.pdf --offline
+```
+Bỏ `--offline` để tra cứu thật (cần API key, xem mục 6.4).
+
+### 6.4. API key
+
+| Biến / tên parameter | Dùng cho | Lấy ở đâu |
+| :--- | :--- | :--- |
+| `VT_API_KEY` | VirusTotal | virustotal.com |
+| `GSB_API_KEY` | Google Safe Browsing | Google Cloud Console (bật Safe Browsing API) |
+| `ABUSECH_AUTH_KEY` | URLhaus, MalwareBazaar | auth.abuse.ch |
+
+Code lấy key theo thứ tự: **biến môi trường → AWS SSM Parameter Store → bỏ qua nguồn đó**.
+Trên Lambda có hai cách: đặt biến môi trường, hoặc tạo parameter `/phishing/<TÊN_KEY>` kiểu `SecureString`, đặt
+biến `SSM_PREFIX=/phishing` và cấp quyền `ssm:GetParameter` cho role. Chi tiết trong `HUONG_DAN_SU_DUNG.md`.
+
+> **Tuyệt đối không dán API key vào code, README hay commit lên GitHub.** Repo ở chế độ Public và lịch sử commit
+> luôn được lưu lại.
+
+### 6.5. Triển khai worker lên Lambda
+1. Trong thư mục `backend`: `python build_zip.py` (tạo `dist/detect-workers.zip`).
+2. Upload **cùng một file zip** vào hai hàm `FastDetectWorker` và `FileDetectWorker`.
+3. Đặt Handler: `fast_detect_worker.lambda_handler` và `file_detect_worker.lambda_handler`.
+4. Timeout / Memory gợi ý: Fast 45 giây / 512 MB, File 90 giây / 1024 MB.
+
+`IngestLambda` và `StatusLambda` không thuộc phần detect nên không cần upload lại.
 
 ---
 
-## 7. Giấy phép & Đóng góp (License)
+## 7. Giới hạn đã biết
+
+* **ClamAV** chỉ chạy khi môi trường có `clamscan` (cần Lambda container image). Mặc định bị bỏ qua.
+* **YARA** hiện là bộ luật chuỗi byte tự viết (`YARA-lite`), chưa phải thư viện YARA thật.
+* **NLP** của email là bộ luật ngôn ngữ Anh–Việt, không phải mô hình học máy.
+* **WHOIS** thực hiện qua **RDAP**; nhiều đuôi tên miền không có RDAP công khai, khi đó không bị trừ điểm.
+* **SPF/DKIM/DMARC** đọc từ kết quả có sẵn trong header email, hệ thống không tự tra DNS.
+* **Xuất báo cáo PDF** chưa có trong mã hiện tại.
+* Hạn mức miễn phí của VirusTotal rất thấp; nên đặt giới hạn đồng thời thấp cho worker.
+* Quét lại **cùng một link/email** trong vòng 24 giờ có thể trả lỗi 500 do `IngestLambda` serialize `Decimal`
+  thiếu `default=str` ở nhánh bộ đệm; cần sửa trong `ingest_lambda.py`.
+
+Danh sách đầy đủ ở `backend/README.md`.
+
+---
+
+## 8. Giấy phép & Đóng góp (License)
 
 Dự án được phát triển phục vụ mục đích nghiên cứu học thuật, đồ án an toàn thông tin và ứng dụng điện toán đám mây. Mọi thành viên trong nhóm có toàn quyền kế thừa, mở rộng và triển khai phi thương mại.
