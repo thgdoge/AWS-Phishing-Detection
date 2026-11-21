@@ -4,8 +4,7 @@ import re
 import socket
 from typing import Dict, Iterable, Optional, Set
 
-# Không có Public Suffix List trong Lambda mặc định nên dùng danh sách rút gọn các
-# suffix 2 tầng phổ biến (đủ cho heuristic; sai số chấp nhận được).
+
 MULTI_PART_SUFFIXES: Set[str] = {
     'co.uk', 'org.uk', 'ac.uk', 'gov.uk', 'com.au', 'net.au', 'org.au', 'co.nz',
     'co.jp', 'ne.jp', 'or.jp', 'co.kr', 'com.cn', 'com.hk', 'com.sg', 'com.my',
@@ -13,7 +12,6 @@ MULTI_PART_SUFFIXES: Set[str] = {
     'com.vn', 'net.vn', 'org.vn', 'edu.vn', 'gov.vn', 'ac.vn', 'info.vn', 'biz.vn',
 }
 
-# Thương hiệu hay bị giả mạo -> các tên miền chính thức.
 BRANDS: Dict[str, Set[str]] = {
     'paypal': {'paypal.com', 'paypal.me'},
     'appleid': {'apple.com', 'icloud.com'},
@@ -39,7 +37,7 @@ BRANDS: Dict[str, Set[str]] = {
     'fedex': {'fedex.com'},
     'ups': {'ups.com'},
     'tiktok': {'tiktok.com'},
-    # Việt Nam
+  
     'vietcombank': {'vietcombank.com.vn', 'vietcombank.com'},
     'vcb': {'vietcombank.com.vn', 'vietcombank.com'},
     'techcombank': {'techcombank.com.vn', 'techcombank.com'},
@@ -67,8 +65,7 @@ BRANDS: Dict[str, Set[str]] = {
     'vneid': {'gov.vn'},
 }
 
-# Tên miền uy tín (chính thức của các brand ở trên + vài site phổ biến). Chỉ dùng để
-# bỏ qua heuristic từ khóa/brand; KHÔNG bỏ qua kết quả VirusTotal/Safe Browsing.
+
 TRUSTED_DOMAINS: Set[str] = set().union(*BRANDS.values()) | {
     'wikipedia.org', 'mozilla.org', 'cloudflare.com', 'stackoverflow.com', 'twitter.com', 'x.com',
     'reddit.com', 'yahoo.com', 'adobe.com', 'oracle.com', 'ibm.com', 'gov.vn', 'edu.vn',
