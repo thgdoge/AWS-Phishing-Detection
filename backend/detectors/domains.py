@@ -1,4 +1,3 @@
-"""Tiện ích tên miền dùng chung cho detector Link và Email (không gọi mạng)."""
 from __future__ import annotations
 
 import re
@@ -75,7 +74,7 @@ TRUSTED_DOMAINS: Set[str] = set().union(*BRANDS.values()) | {
     'reddit.com', 'yahoo.com', 'adobe.com', 'oracle.com', 'ibm.com', 'gov.vn', 'edu.vn',
 }
 
-# Dịch vụ cho người dùng tự đăng nội dung: tên miền uy tín nhưng nội dung thì không.
+
 FREE_HOSTING: Set[str] = {
     'sites.google.com', 'docs.google.com', 'forms.gle', 'drive.google.com', 'storage.googleapis.com',
     'github.io', 'blogspot.com', 'weebly.com', 'wixsite.com', 'notion.site', 'firebaseapp.com',
@@ -103,7 +102,6 @@ def normalize_host(host: str) -> str:
 
 
 def is_ip_host(host: str) -> bool:
-    """True nếu host là IP, kể cả dạng che giấu (số thập phân, hex, rút gọn: http://3232235777/)."""
     host = host.strip('[]')
     if ':' in host:  # IPv6
         try:
@@ -140,7 +138,6 @@ def matches_suffix(host: str, domains: Iterable[str]) -> Optional[str]:
 
 
 def is_trusted(host: str) -> bool:
-    """Tên miền chính thức đã biết, và không phải dịch vụ cho đăng nội dung tự do."""
     if matches_suffix(host, FREE_HOSTING):
         return False
     return matches_suffix(host, TRUSTED_DOMAINS) is not None
@@ -156,7 +153,6 @@ def _token_variants(token: str) -> Set[str]:
 
 
 def brand_impersonation(host: str) -> Optional[str]:
-    """Trả về tên brand nếu host trông giống brand đó nhưng không thuộc tên miền chính thức."""
     host = normalize_host(host)
     if not host or is_ip_host(host) or is_trusted(host):
         return None

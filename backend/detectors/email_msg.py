@@ -1,13 +1,3 @@
-"""Detector cho Email.
-
-Theo sơ đồ: Check SPF/DKIM/DMARC + Bóc tách URL/Attachment + NLP phát hiện lừa đảo.
-
-* Nếu người dùng dán email có header (Authentication-Results, From, Reply-To...), ta parse
-  header thật bằng thư viện ``email``. Nếu chỉ dán phần nội dung thì bỏ qua các kiểm tra
-  header (không phạt vì thiếu dữ liệu).
-* "NLP" ở đây là bộ luật ngôn ngữ (song ngữ Anh - Việt, có và không dấu). Giao diện
-  ``analyze_text`` tách riêng để sau này có thể thay bằng mô hình (ví dụ Amazon Comprehend).
-"""
 from __future__ import annotations
 
 import email
@@ -62,7 +52,7 @@ LURE_PHRASES = [
     'hoan tien ngay', 'nhan thuong',
 ]
 
-# Dạng hiển thị có dấu cho các cụm tiếng Việt (so khớp dùng dạng không dấu).
+
 PHRASE_DISPLAY = {
     'khan cap': 'khẩn cấp', 'ngay lap tuc': 'ngay lập tức', 'trong vong 24 gio': 'trong vòng 24 giờ',
     'trong 24 gio': 'trong 24 giờ', 'trong 24h': 'trong 24h',
@@ -93,9 +83,7 @@ _URL_RE = re.compile(r'(?:https?://|www\.)[^\s<>"\'\]\[]+', re.I)
 _DOMAIN_IN_TEXT = re.compile(r'\b((?:[a-z0-9-]+\.)+[a-z]{2,})\b', re.I)
 
 
-# --------------------------------------------------------------------------- #
-# Parse
-# --------------------------------------------------------------------------- #
+
 @dataclass
 class ParsedEmail:
     has_headers: bool = False
@@ -168,7 +156,7 @@ def parse_email(raw: str) -> ParsedEmail:
 
 
 class _HtmlExtract(HTMLParser):
-    """Lấy chữ nhìn thấy được và các thẻ <a> (href + chữ hiển thị)."""
+    
 
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -213,9 +201,7 @@ def extract_html(parts: List[str]) -> Tuple[str, List[Tuple[str, str]]]:
     return '\n'.join(texts), anchors
 
 
-# --------------------------------------------------------------------------- #
-# NLP theo luật
-# --------------------------------------------------------------------------- #
+
 def analyze_text(subject: str, body: str) -> Tuple[Dict[str, Any], List[Finding]]:
     text = fold(subject + '\n' + body)
     urgent = [p for p, rx in _URGENT_RE if rx.search(text)]
@@ -242,9 +228,7 @@ def analyze_text(subject: str, body: str) -> Tuple[Dict[str, Any], List[Finding]
             'lure_phrases_found': lure}, findings
 
 
-# --------------------------------------------------------------------------- #
-# Người gửi + xác thực
-# --------------------------------------------------------------------------- #
+
 def _auth_verdict(auth_text: str, mech: str) -> Optional[str]:
     results = {m.lower() for m in re.findall(rf'\b{mech}=(\w+)', auth_text, re.I)}
     if not results:
@@ -292,12 +276,11 @@ def analyze_sender(p: ParsedEmail) -> Tuple[Dict[str, Any], List[Finding]]:
     if reply_host and from_reg and registrable_domain(reply_host) != from_reg:
         findings.append(Finding('REPLYTO_MISMATCH', detail=f'{from_reg} ≠ {registrable_domain(reply_host)}'))
 
-    # Return-Path khác tên miền là bình thường với dịch vụ gửi mail hàng loạt khi SPF pass.
+   
     rp_host = _addr_domain(p.return_path)
     if rp_host and from_reg and spf != 'pass' and registrable_domain(rp_host) != from_reg:
         findings.append(Finding('RETURNPATH_MISMATCH', detail=f'{from_reg} ≠ {registrable_domain(rp_host)}'))
 
-    # Tên hiển thị giả danh: chứa một tên miền khác, hoặc chứa tên brand nhưng gửi từ domain lạ.
     name = p.from_name or ''
     spoof = None
     m = _DOMAIN_IN_TEXT.search(name)
@@ -314,9 +297,7 @@ def analyze_sender(p: ParsedEmail) -> Tuple[Dict[str, Any], List[Finding]]:
     return info, findings
 
 
-# --------------------------------------------------------------------------- #
-# URL
-# --------------------------------------------------------------------------- #
+
 def extract_urls(text: str, anchors: List[Tuple[str, str]]) -> List[str]:
     found: List[str] = []
 
@@ -337,7 +318,6 @@ def extract_urls(text: str, anchors: List[Tuple[str, str]]) -> List[str]:
 
 
 def link_text_mismatches(anchors: List[Tuple[str, str]]) -> List[str]:
-    """Chữ hiển thị là một tên miền (vd. paypal.com) nhưng href trỏ tới tên miền khác."""
     out: List[str] = []
     for href, shown in anchors:
         m = _DOMAIN_IN_TEXT.search(shown or '')
@@ -350,9 +330,7 @@ def link_text_mismatches(anchors: List[Tuple[str, str]]) -> List[str]:
     return out[:3]
 
 
-# --------------------------------------------------------------------------- #
-# Tổng hợp
-# --------------------------------------------------------------------------- #
+
 def _score_of(analysis: Analysis) -> Tuple[int, List[str]]:
     s = compute_score(analysis.findings, reputation_ok=analysis.reputation_ok,
                       reputation_needed=analysis.reputation_needed)
@@ -410,7 +388,6 @@ def analyze_email(raw: str, deadline: Deadline) -> Analysis:
             findings.append(Finding('EMAIL_LINK_RISK', value=100 - worst[0],
                                     detail=f'{domain}: {worst[2]}'.strip(': ')))
 
-    # ---- tệp đính kèm ------------------------------------------------------------------
     att_rows: List[Dict[str, Any]] = []
     worst_att: Optional[Tuple[int, str, str]] = None
     for att in parsed.attachments[:MAX_ATTACHMENTS]:

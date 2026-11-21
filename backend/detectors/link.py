@@ -1,11 +1,3 @@
-"""Detector cho Link (URL).
-
-Chuỗi kiểm tra theo sơ đồ: Domain/WHOIS (RDAP) + Blacklist (VirusTotal, Safe Browsing,
-URLhaus) + Redirect chain, cộng thêm phân tích cấu trúc URL và trang đích.
-
-``analyze_link`` KHÔNG tự chấm điểm: nó trả về ``details`` + ``findings`` để Scoring Engine
-quyết định. Các lời gọi mạng chạy song song và không bao giờ làm hỏng cả job.
-"""
 from __future__ import annotations
 
 import re
@@ -24,7 +16,6 @@ from .domains import (FREE_HOSTING, SUSPICIOUS_TLDS, URL_SHORTENERS, brand_imper
 
 MAX_URL_CHARS = 4096
 
-# Từ khóa nhạy cảm (đã bỏ tên brand vì BRAND_IMPERSONATION xử lý riêng).
 SUSPICIOUS_URL_KEYWORDS = [
     'login', 'signin', 'verify', 'update', 'security', 'secure', 'account', 'banking', 'support',
     'confirm', 'wallet', 'unlock', 'auth', 'credential', 'recover', 'password', 'billing',
@@ -39,9 +30,6 @@ THREAT_VI = {'SOCIAL_ENGINEERING': 'lừa đảo', 'MALWARE': 'mã độc',
 LinkAnalysis = Analysis
 
 
-# --------------------------------------------------------------------------- #
-# Chuẩn hóa đầu vào
-# --------------------------------------------------------------------------- #
 def normalize_url(raw: str) -> str:
     url = (raw or '').strip()
     if not url:
@@ -60,9 +48,6 @@ def normalize_url(raw: str) -> str:
     return url
 
 
-# --------------------------------------------------------------------------- #
-# Phân tích tĩnh (thuần, không mạng)
-# --------------------------------------------------------------------------- #
 def static_analysis(url: str) -> Tuple[Dict[str, Any], List[Finding]]:
     try:
         parts = urllib.parse.urlsplit(url)
@@ -94,7 +79,7 @@ def static_analysis(url: str) -> Tuple[Dict[str, Any], List[Finding]]:
 
     if is_ip:
         findings.append(Finding('IP_HOST'))
-        return details, findings   # IP thì các kiểm tra tên miền bên dưới không còn ý nghĩa
+        return details, findings   
 
     if tld in SUSPICIOUS_TLDS:
         details['suspicious_tld'] = True
@@ -138,9 +123,7 @@ def static_analysis(url: str) -> Tuple[Dict[str, Any], List[Finding]]:
     return details, findings
 
 
-# --------------------------------------------------------------------------- #
-# Trang đích
-# --------------------------------------------------------------------------- #
+
 class _FormScanner(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -187,13 +170,11 @@ def analyze_landing(body: str, final_url: str) -> Tuple[Dict[str, Any], List[Fin
     return info, findings
 
 
-# --------------------------------------------------------------------------- #
-# Tổng hợp
-# --------------------------------------------------------------------------- #
+
 def _safe(fn: Callable, *args, source: str) -> Dict[str, Any]:
     try:
         return fn(*args)
-    except Exception as exc:  # noqa: BLE001 - một nguồn lỗi không được làm hỏng cả phân tích
+    except Exception as exc: 
         return {'source': source, 'ok': False, 'status': 'ERROR', 'error': type(exc).__name__}
 
 
@@ -221,7 +202,6 @@ def analyze_link(raw_url: str, deadline: Deadline, *, mode: str = 'full') -> Lin
             chain = ChainResult(final_url=url, error=type(exc).__name__)
         rdap = f_rdap.result() if f_rdap else None
 
-    # ---- uy tín --------------------------------------------------------------------
     details['virustotal_report'] = vt
     details['safe_browsing'] = gsb
     details['urlhaus'] = uh
@@ -236,14 +216,14 @@ def analyze_link(raw_url: str, deadline: Deadline, *, mode: str = 'full') -> Lin
         findings.append(Finding('URLHAUS_LISTED', detail=uh.get('threat') or 'malware_download'))
     reputation_ok = sum(1 for r in (vt, gsb, uh) if r.get('ok'))
 
-    # ---- tuổi tên miền ---------------------------------------------------------------
+    
     if rdap:
         details['rdap'] = rdap
         if rdap.get('ok'):
             details['domain_age_days'] = rdap['age_days']
             findings.append(Finding('DOMAIN_NEW', value=rdap['age_days']))
 
-    # ---- redirect + trang đích ------------------------------------------------------
+    
     details.update({'redirection_count': 0, 'ssl_valid': False})
     if chain is not None:
         details['redirect_chain'] = [h['url'] for h in chain.hops][:8]
@@ -267,7 +247,7 @@ def analyze_link(raw_url: str, deadline: Deadline, *, mode: str = 'full') -> Lin
         if final_host and final_reg != reg:
             if not details.get('is_shortener') and not is_trusted(final_host):
                 findings.append(Finding('REDIRECT_CROSS_DOMAIN', detail=f'{reg} → {final_reg}'))
-            # Link đích mới là thứ người dùng thực sự mở: phân tích lại cấu trúc + Safe Browsing.
+            
             try:
                 _, final_findings = static_analysis(chain.final_url)
                 have = {f.code for f in findings}

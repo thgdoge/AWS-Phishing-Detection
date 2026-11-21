@@ -1,12 +1,3 @@
-"""Detector cho File.
-
-Theo sơ đồ: Tính hash (SHA-256) + Quét mã độc (ClamAV/YARA) + Phân tích định dạng tệp.
-
-Phân tích tĩnh gồm: đuôi tệp (đuôi kép, ký tự RLO), magic bytes so với đuôi, luật kiểu YARA,
-macro/template từ xa trong Office, nội dung chủ động trong PDF, tệp thực thi trong file nén,
-biểu mẫu mật khẩu trong HTML, và Shannon entropy. Sau đó tra cứu VirusTotal/MalwareBazaar
-theo hash và (nếu có binary) quét ClamAV.
-"""
 from __future__ import annotations
 
 import hashlib
@@ -61,16 +52,14 @@ FORMAT_LABEL = {
 }
 
 
-# --------------------------------------------------------------------------- #
-# Luật kiểu YARA (không cần thư viện yara-python)
-# --------------------------------------------------------------------------- #
+
 @dataclass(frozen=True)
 class YaraLite:
     name: str
     all_of: Tuple[bytes, ...] = ()
     any_of: Tuple[bytes, ...] = ()
     also_any: Tuple[bytes, ...] = ()
-    skip_types: Tuple[str, ...] = ()   # không áp dụng cho các định dạng này (tránh FP trên file thực thi hợp lệ)
+    skip_types: Tuple[str, ...] = ()   
 
     def matches(self, data: bytes, magic: str) -> bool:
         if magic in self.skip_types:
@@ -102,9 +91,7 @@ YARA_LITE_RULES: List[YaraLite] = [
 ]
 
 
-# --------------------------------------------------------------------------- #
-# Nhận diện định dạng
-# --------------------------------------------------------------------------- #
+
 def detect_magic(header: bytes, sample: bytes) -> str:
     if header.startswith(b'MZ'):
         return 'PE'
@@ -176,9 +163,6 @@ def _file_contains(path: str, needle: bytes) -> bool:
     return False
 
 
-# --------------------------------------------------------------------------- #
-# Kiểm tra theo tên tệp
-# --------------------------------------------------------------------------- #
 def filename_findings(filename: str) -> List[Finding]:
     name = os.path.basename(filename or '')
     lower = name.lower()
@@ -194,9 +178,6 @@ def filename_findings(filename: str) -> List[Finding]:
     return findings
 
 
-# --------------------------------------------------------------------------- #
-# Kiểm tra theo định dạng
-# --------------------------------------------------------------------------- #
 def inspect_zip(path: str, ext: str) -> Tuple[Dict[str, Any], List[Finding]]:
     info: Dict[str, Any] = {'entries': 0, 'encrypted': False, 'executables': [],
                             'has_vba_project': False, 'remote_template': None}
@@ -257,9 +238,7 @@ def inspect_html(sample: bytes) -> List[Finding]:
     return []
 
 
-# --------------------------------------------------------------------------- #
-# ClamAV (chỉ chạy nếu có binary, ví dụ Lambda container image / layer)
-# --------------------------------------------------------------------------- #
+
 def run_clamav(path: str, deadline: Deadline) -> Dict[str, Any]:
     exe = shutil.which('clamscan')
     if not exe:
@@ -280,16 +259,14 @@ def run_clamav(path: str, deadline: Deadline) -> Dict[str, Any]:
     return {'status': f'ERROR (exit {res.returncode})', 'infected': False}
 
 
-# --------------------------------------------------------------------------- #
-# Tổng hợp
-# --------------------------------------------------------------------------- #
+
 def _static_findings(path: str, filename: str, scan: Dict[str, Any], magic: str) -> Tuple[List[Finding], Dict[str, Any]]:
     ext = os.path.splitext(os.path.basename(filename).lower())[1]
     sample: bytes = scan['sample']
     findings = filename_findings(filename)
     extra: Dict[str, Any] = {}
 
-    # Magic bytes so với đuôi tệp
+ 
     expected = EXT_EXPECTED.get(ext)
     if expected is not None and magic not in expected:
         if magic in EXEC_TYPES:
@@ -299,7 +276,7 @@ def _static_findings(path: str, filename: str, scan: Dict[str, Any], magic: str)
     elif expected is None and ext and magic in EXEC_TYPES and ext not in EXEC_EXTENSIONS:
         findings.append(Finding('EXEC_DISGUISED', detail=ext))
 
-    # Luật kiểu YARA trên 2 MB đầu (bỏ byte NUL nếu là văn bản UTF-16)
+ 
     data = sample.lower()
     if magic not in ('PE', 'ELF', 'MACHO') and data.count(b'\x00') > len(data) * 0.3:
         data = data.replace(b'\x00', b'')
@@ -307,7 +284,7 @@ def _static_findings(path: str, filename: str, scan: Dict[str, Any], magic: str)
     if matched:
         findings.append(Finding('YARA_MATCH', value=len(matched), detail=', '.join(matched)))
 
-    # Theo định dạng
+
     if magic == 'ZIP':
         zinfo, zfind = inspect_zip(path, ext)
         extra['archive'] = {k: (v[:5] if isinstance(v, list) else v) for k, v in zinfo.items()}
@@ -319,7 +296,7 @@ def _static_findings(path: str, filename: str, scan: Dict[str, Any], magic: str)
     elif magic == 'HTML' or ext in ('.html', '.htm', '.shtml', '.xhtml'):
         findings += inspect_html(sample)
 
-    # Entropy
+
     if scan['entropy'] > 7.5 and (ext in HIGH_RISK_EXTENSIONS or magic in EXEC_TYPES):
         findings.append(Finding('HIGH_ENTROPY', detail=f"{scan['entropy']:.2f}"))
     return findings, {'matched_yara_rules': matched, **extra}
@@ -331,7 +308,7 @@ def analyze_file(path: str, filename: str, deadline: Deadline, *, allow_upload: 
     magic = detect_magic(scan['sample'][:16], scan['sample'])
     findings, extra = _static_findings(path, filename, scan, magic)
 
-    # Tra cứu uy tín + ClamAV chạy song song
+  
     with ThreadPoolExecutor(max_workers=3) as pool:
         f_vt = pool.submit(_guard, vt_lookup_file, scan['sha256'], path, filename, scan['size'], deadline,
                            allow_upload=allow_upload, source='virustotal')
@@ -364,13 +341,13 @@ def analyze_file(path: str, filename: str, deadline: Deadline, *, allow_upload: 
 def _guard(fn, *args, source: str, **kw) -> Dict[str, Any]:
     try:
         return fn(*args, **kw)
-    except Exception as exc:  # noqa: BLE001 - một nguồn lỗi không được làm hỏng cả phân tích
+    except Exception as exc:  
         return {'source': source, 'ok': False, 'status': 'ERROR', 'error': type(exc).__name__,
                 'malicious': 0, 'suspicious': 0}
 
 
 def analyze_bytes(data: bytes, filename: str, deadline: Deadline) -> Analysis:
-    """Dùng cho tệp đính kèm email. Không upload nội dung lên VirusTotal (chỉ tra cứu theo hash)."""
+    
     fd, path = tempfile.mkstemp(prefix='att_')
     try:
         with os.fdopen(fd, 'wb') as fh:
