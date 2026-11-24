@@ -41,5 +41,5 @@ Sửa `API_BASE` trong `js/config.js`.
 
 ## Việc chưa làm
 
-- Đăng nhập, trang Lịch sử, trang quản trị: chờ backend và cấu hình Cognito.
+- Đã bỏ đăng nhập và trang Lịch sử khỏi giao diện (không nằm trong phạm vi hiện tại).
 - Triển khai lên S3 và cấu hình CORS: làm cùng người phụ trách hạ tầng.
